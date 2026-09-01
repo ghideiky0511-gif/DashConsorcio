@@ -42,6 +42,11 @@ export async function requireRole(...roles: Role[]) {
   return profile;
 }
 
+/** Papéis que podem criar/editar cartas, parcelas, despesas, acesso e documentos. */
+export async function requireEditor() {
+  return requireRole(Role.ADMIN, Role.OPERADOR);
+}
+
 export const canEdit = (role: Role) =>
   role === Role.ADMIN || role === Role.OPERADOR;
 export const isAdmin = (role: Role) => role === Role.ADMIN;
