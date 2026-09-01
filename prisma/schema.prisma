@@ -1,0 +1,383 @@
+// Dashboard HH Gestão de Consórcio — modelo de dados
+// Docs: https://pris.ly/d/prisma-schema
+// Prisma 7: generator `prisma-client` (ESM, output em src/generated/prisma);
+// URLs do banco ficam em prisma7.config.ts, não neste arquivo.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────── Enums ───────────────────────────────
+
+enum Role {
+  ADMIN
+  OPERADOR
+  VISUALIZADOR
+}
+
+enum TipoBem {
+  IMOVEL
+  VEICULO
+  SERVICOS
+  OUTRO
+}
+
+enum StatusConsorcio {
+  ATIVA
+  CANCELADA
+}
+
+enum TipoSaida {
+  RESGATE
+  REVENDA
+}
+
+enum FormaContemplacao {
+  SORTEIO
+  LANCE
+}
+
+enum StatusParcela {
+  PENDENTE
+  PAGO
+  ATRASADO
+  CANCELADO
+}
+
+enum PapelContraparte {
+  CEDENTE
+  COMPRADOR_FINAL
+  REPRESENTANTE
+  OUTRO
+}
+
+enum TipoDocumento {
+  CONTRATO
+  PROCURACAO
+  IDENTIFICACAO
+  COMPROVANTE
+  OUTRO
+}
+
+enum TipoDespesa {
+  COMISSAO
+  DARE
+  GUIA_TJ
+  CARTORIO
+  DIVERSAS
+  OUTRO
+}
+
+enum TipoMovimento {
+  ENTRADA
+  SAIDA
+}
+
+enum CategoriaMovimento {
+  COMPRA_CARTA
+  DESPESA_CARTA
+  PARCELA
+  RESGATE_CARTA
+  REVENDA_CARTA
+  OUTRO
+}
+
+// ────────────────────────────── Modelos ──────────────────────────────
+
+/// Espelha auth.users do Supabase; `id` = auth.users.id.
+model Profile {
+  id        String   @id @db.Uuid
+  nome      String
+  email     String   @unique
+  role      Role     @default(VISUALIZADOR)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cartasCriadas   Carta[]          @relation("CartaCriadaPor")
+  etapaHistoricos EtapaHistorico[]
+  documentos      Documento[]
+
+  @@map("profiles")
+}
+
+/// Entidades da HH que adquirem as cartas (coluna "Cessionária").
+model Cessionaria {
+  id         String   @id @default(uuid()) @db.Uuid
+  nome       String   @unique
+  cnpj       String?
+  observacao String?
+  ativa      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cartas Carta[]
+
+  @@map("cessionarias")
+}
+
+/// Administradora do consórcio (coluna "ADM").
+model Administradora {
+  id        String   @id @default(uuid()) @db.Uuid
+  nome      String   @unique
+  cnpj      String?
+  contato   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cartas Carta[]
+
+  @@map("administradoras")
+}
+
+/// Etapa do pipeline (configurável em /configuracoes).
+model Etapa {
+  id        String   @id @default(uuid()) @db.Uuid
+  nome      String
+  ordem     Int
+  cor       String?
+  ativa     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cartas        Carta[]
+  historicoDe   EtapaHistorico[] @relation("EtapaDe")
+  historicoPara EtapaHistorico[] @relation("EtapaPara")
+
+  @@unique([ordem])
+  @@map("etapas")
+}
+
+/// Carta de consórcio comprada pela HH. Uma linha da planilha = uma Carta.
+model Carta {
+  id              String  @id @default(uuid()) @db.Uuid
+  codigo          String  @unique // "Controle Interno SSA"
+  cessionariaId   String  @db.Uuid
+  administradoraId String @db.Uuid
+  grupo           String
+  cota            String
+  contrato        String?
+  origem          String? // "Origem (intermediador)"
+
+  tipoBem         TipoBem         @default(OUTRO)
+  statusConsorcio StatusConsorcio @default(ATIVA)
+  tipoSaida       TipoSaida?
+  etapaId         String          @db.Uuid
+
+  // Financeiro
+  valorCredito             Decimal  @default(0) @db.Decimal(14, 2) // "Crédito Atual"
+  valorCreditoContemplacao Decimal? @db.Decimal(14, 2) // "Valor do Crédito"
+  percentualPago           Decimal? @db.Decimal(7, 4) // fração 0..1
+  valorCompra              Decimal  @default(0) @db.Decimal(14, 2) // "Custo da Aquisição"
+  previsaoResgate          Decimal? @db.Decimal(14, 2) // "Previsão de Resgate (R$)"
+  valorResgatado           Decimal? @db.Decimal(14, 2) // "Valor Resgatado em:"
+  valorRevenda             Decimal? @db.Decimal(14, 2)
+
+  // Datas-marco do processo
+  dataCompra          DateTime? @db.Date
+  dataCadastroBolsa   DateTime? @db.Date
+  encerramentoGrupo   DateTime? @db.Date
+  dataCopiasSeveri    DateTime? @db.Date
+  dataOriginaisSeveri DateTime? @db.Date
+  dataNotificacao     DateTime? @db.Date
+  dataDoctoAdm        DateTime? @db.Date
+  dataPedidoResgate   DateTime? @db.Date
+  contempladaEm       DateTime? @db.Date
+  dataResgate         DateTime? @db.Date
+  dataRevenda         DateTime? @db.Date
+
+  formaContemplacao FormaContemplacao?
+
+  // Parcelamento
+  parcelasTotais   Int?
+  parcelasQuitadas Int?
+  parcelaValor     Decimal? @db.Decimal(14, 2)
+  diaVencimento    Int?
+
+  observacoes       String? // "OBSERVAÇÃO (Documento pendente, etc)"
+  observacoesGerais String?
+
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cessionaria    Cessionaria      @relation(fields: [cessionariaId], references: [id])
+  administradora Administradora   @relation(fields: [administradoraId], references: [id])
+  etapa          Etapa            @relation(fields: [etapaId], references: [id])
+  createdBy      Profile          @relation("CartaCriadaPor", fields: [createdById], references: [id])
+  acesso         AcessoCota?
+  despesas       DespesaCarta[]
+  parcelas       Parcela[]
+  contrapartes   Contraparte[]
+  documentos     Documento[]
+  etapaHistorico EtapaHistorico[]
+  movimentos     MovimentoCaixa[]
+
+  @@index([cessionariaId])
+  @@index([administradoraId])
+  @@index([etapaId])
+  @@index([statusConsorcio])
+  @@map("cartas")
+}
+
+/// Credenciais de acesso à conta do consorciado (colunas E-mail cadastro / Cota Chave / Celular / Senha).
+model AcessoCota {
+  id            String   @id @default(uuid()) @db.Uuid
+  cartaId       String   @unique @db.Uuid
+  emailCadastro String?
+  cotaChave     String?
+  celular       String?
+  senha         String?
+  observacao    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  carta Carta @relation(fields: [cartaId], references: [id], onDelete: Cascade)
+
+  @@map("acessos_cota")
+}
+
+/// Lançamento de despesa por carta. Comissão / DARE / Guia TJ / Cartório / Diversas viram um lançamento cada.
+model DespesaCarta {
+  id        String      @id @default(uuid()) @db.Uuid
+  cartaId   String      @db.Uuid
+  tipo      TipoDespesa
+  descricao String?
+  valor     Decimal     @db.Decimal(14, 2)
+  data      DateTime?   @db.Date
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  carta      Carta            @relation(fields: [cartaId], references: [id], onDelete: Cascade)
+  movimentos MovimentoCaixa[]
+
+  @@index([cartaId])
+  @@map("despesas_carta")
+}
+
+/// Trilha de auditoria do pipeline.
+model EtapaHistorico {
+  id          String   @id @default(uuid()) @db.Uuid
+  cartaId     String   @db.Uuid
+  etapaDeId   String?  @db.Uuid
+  etapaParaId String   @db.Uuid
+  observacao  String?
+  data        DateTime @default(now())
+  userId      String   @db.Uuid
+
+  carta     Carta   @relation(fields: [cartaId], references: [id], onDelete: Cascade)
+  etapaDe   Etapa?  @relation("EtapaDe", fields: [etapaDeId], references: [id])
+  etapaPara Etapa   @relation("EtapaPara", fields: [etapaParaId], references: [id])
+  user      Profile @relation(fields: [userId], references: [id])
+
+  @@index([cartaId])
+  @@map("etapa_historico")
+}
+
+/// Parcela mensal a pagar de uma carta.
+model Parcela {
+  id             String        @id @default(uuid()) @db.Uuid
+  cartaId        String        @db.Uuid
+  numero         Int
+  competencia    DateTime      @db.Date // 1º dia do mês
+  vencimento     DateTime      @db.Date
+  valorPrevisto  Decimal       @db.Decimal(14, 2)
+  status         StatusParcela @default(PENDENTE)
+  valorPago      Decimal?      @db.Decimal(14, 2)
+  dataPagamento  DateTime?     @db.Date
+  formaPagamento String?
+  observacao     String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  carta      Carta            @relation(fields: [cartaId], references: [id], onDelete: Cascade)
+  documentos Documento[]
+  movimentos MovimentoCaixa[]
+
+  @@unique([cartaId, numero])
+  @@index([vencimento])
+  @@index([status])
+  @@map("parcelas")
+}
+
+/// Pessoas ligadas à carta: cedente (consorciado), comprador final, representante.
+model Contraparte {
+  id         String           @id @default(uuid()) @db.Uuid
+  cartaId    String           @db.Uuid
+  papel      PapelContraparte
+  nome       String
+  documento  String? // CPF/CNPJ
+  email      String?
+  telefone   String?
+  observacao String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  carta      Carta       @relation(fields: [cartaId], references: [id], onDelete: Cascade)
+  documentos Documento[]
+
+  @@index([cartaId])
+  @@map("contrapartes")
+}
+
+/// Arquivo no bucket privado `documentos` do Supabase Storage.
+model Documento {
+  id            String        @id @default(uuid()) @db.Uuid
+  cartaId       String?       @db.Uuid
+  parcelaId     String?       @db.Uuid
+  contraparteId String?       @db.Uuid
+  tipo          TipoDocumento @default(OUTRO)
+  nome          String
+  storagePath   String
+  tamanho       Int
+  mimeType      String
+  uploadedById  String        @db.Uuid
+  createdAt     DateTime      @default(now())
+
+  carta       Carta?       @relation(fields: [cartaId], references: [id], onDelete: Cascade)
+  parcela     Parcela?     @relation(fields: [parcelaId], references: [id], onDelete: Cascade)
+  contraparte Contraparte? @relation(fields: [contraparteId], references: [id], onDelete: Cascade)
+  uploadedBy  Profile      @relation(fields: [uploadedById], references: [id])
+
+  @@index([cartaId])
+  @@map("documentos")
+}
+
+/// Livro-caixa unificado. Alimentado ao pagar parcela / registrar compra / lançar despesa / registrar resgate ou revenda.
+model MovimentoCaixa {
+  id         String             @id @default(uuid()) @db.Uuid
+  tipo       TipoMovimento
+  categoria  CategoriaMovimento
+  descricao  String
+  valor      Decimal            @db.Decimal(14, 2)
+  data       DateTime           @db.Date
+  cartaId    String?            @db.Uuid
+  parcelaId  String?            @db.Uuid
+  despesaId  String?            @db.Uuid
+  conciliado Boolean            @default(false)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  carta   Carta?        @relation(fields: [cartaId], references: [id], onDelete: SetNull)
+  parcela Parcela?      @relation(fields: [parcelaId], references: [id], onDelete: SetNull)
+  despesa DespesaCarta? @relation(fields: [despesaId], references: [id], onDelete: SetNull)
+
+  @@index([data])
+  @@index([cartaId])
+  @@map("movimentos_caixa")
+}
+
+/// Configuração singleton do caixa (base da projeção).
+model ConfigCaixa {
+  id               String   @id @default("singleton")
+  saldoInicial     Decimal  @default(0) @db.Decimal(14, 2)
+  dataSaldoInicial DateTime @db.Date
+  updatedAt        DateTime @updatedAt
+
+  @@map("config_caixa")
+}
