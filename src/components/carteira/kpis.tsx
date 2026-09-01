@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/format";
-import type { CarteiraResumo } from "@/lib/queries/carteira";
+import type { VisaoGeral } from "@/lib/queries/visao-geral";
 
 function Kpi({
   label,
@@ -9,19 +9,28 @@ function Kpi({
   sub,
   tone,
   href,
+  destaque,
 }: {
   label: string;
   valor: string;
   sub?: string;
   tone?: "positive" | "negative" | "warning";
   href?: string;
+  destaque?: boolean;
 }) {
   const body = (
-    <div className="rounded-lg border bg-card p-4 transition-colors data-[link=true]:hover:border-primary/50">
+    <div
+      className={cn(
+        "h-full rounded-lg border bg-card p-4 transition-colors",
+        href && "hover:border-primary/50",
+        destaque && "sm:col-span-2",
+      )}
+    >
       <div className="text-xs text-muted-foreground">{label}</div>
       <div
         className={cn(
-          "mt-1.5 text-lg font-semibold tabular-nums",
+          "mt-1.5 font-semibold tabular-nums",
+          destaque ? "text-2xl" : "text-lg",
           tone === "positive" && "text-positive",
           tone === "negative" && "text-destructive",
           tone === "warning" && "text-warning",
@@ -34,7 +43,7 @@ function Kpi({
   );
 
   return href ? (
-    <Link href={href} data-link="true" className="block">
+    <Link href={href} className="block">
       {body}
     </Link>
   ) : (
@@ -42,46 +51,50 @@ function Kpi({
   );
 }
 
-export function CarteiraKpis({ resumo }: { resumo: CarteiraResumo }) {
-  const lucroTone = resumo.lucroPrevistoTotal >= 0 ? "positive" : "negative";
-  const realizadoTone = resumo.resultadoRealizado >= 0 ? "positive" : "negative";
+export function CarteiraKpis({ kpis }: { kpis: VisaoGeral["kpis"] }) {
+  const lucroTone = kpis.lucroPrevistoTotal >= 0 ? "positive" : "negative";
+  const realizadoTone = kpis.resultadoRealizado >= 0 ? "positive" : "negative";
 
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
       <Kpi
         label="Cartas"
-        valor={String(resumo.totalCartas)}
-        sub={`${resumo.ativas} ativas · ${resumo.canceladas} canceladas`}
+        valor={String(kpis.totalCartas)}
+        sub={`${kpis.ativas} ativas · ${kpis.canceladas} canceladas`}
       />
       <Kpi
         label="Crédito total"
-        valor={formatBRL(resumo.creditoTotal)}
-        sub={`contemplado: ${formatBRL(resumo.creditoContemplado)}`}
+        valor={formatBRL(kpis.creditoTotal)}
+        sub={`contemplado: ${formatBRL(kpis.creditoContemplado)}`}
       />
-      <Kpi label="Investido" valor={formatBRL(resumo.investido)} sub="custo total das cartas" />
+      <Kpi
+        label="Investido"
+        valor={formatBRL(kpis.investido)}
+        sub="custo total das cartas"
+      />
       <Kpi
         label="Previsão de lucro"
-        valor={formatBRL(resumo.lucroPrevistoTotal)}
-        sub="previsão de resgate − investido"
+        valor={formatBRL(kpis.lucroPrevistoTotal)}
+        sub={`resgate previsto: ${formatBRL(kpis.previsaoResgateTotal)}`}
         tone={lucroTone}
       />
       <Kpi
         label="Resultado realizado"
-        valor={formatBRL(resumo.resultadoRealizado)}
+        valor={formatBRL(kpis.resultadoRealizado)}
         sub="cartas já encerradas"
         tone={realizadoTone}
       />
       <Kpi
         label="A pagar (30 dias)"
-        valor={formatBRL(resumo.aPagar30.valor)}
-        sub={`${resumo.aPagar30.qtd} parcelas`}
+        valor={formatBRL(kpis.aPagar30.valor)}
+        sub={`${kpis.aPagar30.qtd} parcelas`}
         href="/fluxo-caixa"
       />
       <Kpi
         label="Parcelas atrasadas"
-        valor={String(resumo.atrasadas.qtd)}
-        sub={formatBRL(resumo.atrasadas.valor)}
-        tone={resumo.atrasadas.qtd > 0 ? "negative" : undefined}
+        valor={String(kpis.atrasadas.qtd)}
+        sub={formatBRL(kpis.atrasadas.valor)}
+        tone={kpis.atrasadas.qtd > 0 ? "negative" : undefined}
         href="/fluxo-caixa"
       />
     </div>

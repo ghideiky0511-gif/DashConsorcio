@@ -1,9 +1,7 @@
-import { addDays } from "date-fns";
 import { prisma } from "@/lib/db";
-import { custoTotal, lucroPrevisto, previsaoPercentualLucro } from "@/lib/carta";
+import { custoTotal, previsaoPercentualLucro } from "@/lib/carta";
 import {
   StatusConsorcio,
-  StatusParcela,
   TipoBem,
   TipoSaida,
   type Prisma,
@@ -181,125 +179,6 @@ export async function listarCartas(
     cartas,
     total,
     totalPaginas: Math.max(1, Math.ceil(total / PAGE_SIZE)),
-  };
-}
-
-export type CarteiraResumo = Awaited<ReturnType<typeof getCarteiraResumo>>;
-
-export async function getCarteiraResumo() {
-  const hoje = new Date();
-  const em30 = addDays(hoje, 30);
-
-  const [
-    porStatus,
-    creditoAgg,
-    creditoContemplado,
-    compraAgg,
-    despesaAgg,
-    previsaoAgg,
-    encerradas,
-    aPagar30,
-    atrasadasAgg,
-    porEtapa,
-    porCessionaria,
-  ] = await Promise.all([
-    prisma.carta.groupBy({ by: ["statusConsorcio"], _count: { _all: true } }),
-    prisma.carta.aggregate({ _sum: { valorCredito: true } }),
-    prisma.carta.aggregate({
-      _sum: { valorCredito: true },
-      where: { contempladaEm: { not: null } },
-    }),
-    prisma.carta.aggregate({ _sum: { valorCompra: true } }),
-    prisma.despesaCarta.aggregate({ _sum: { valor: true } }),
-    prisma.carta.aggregate({ _sum: { previsaoResgate: true } }),
-    prisma.carta.findMany({
-      where: { OR: [{ dataResgate: { not: null } }, { dataRevenda: { not: null } }] },
-      select: {
-        valorResgatado: true,
-        valorRevenda: true,
-        valorCompra: true,
-        despesas: { select: { valor: true } },
-      },
-    }),
-    prisma.parcela.aggregate({
-      _sum: { valorPrevisto: true },
-      _count: { _all: true },
-      where: {
-        status: { in: [StatusParcela.PENDENTE, StatusParcela.ATRASADO] },
-        vencimento: { gte: hoje, lte: em30 },
-      },
-    }),
-    prisma.parcela.aggregate({
-      _sum: { valorPrevisto: true },
-      _count: { _all: true },
-      where: {
-        OR: [
-          { status: StatusParcela.ATRASADO },
-          { status: StatusParcela.PENDENTE, vencimento: { lt: hoje } },
-        ],
-      },
-    }),
-    prisma.carta.groupBy({ by: ["etapaId"], _count: { _all: true } }),
-    prisma.carta.groupBy({ by: ["cessionariaId"], _count: { _all: true } }),
-  ]);
-
-  const num = (v: { toString(): string } | null | undefined) =>
-    v == null ? 0 : Number(v.toString());
-
-  const investido =
-    num(compraAgg._sum.valorCompra) + num(despesaAgg._sum.valor);
-
-  const realizado = encerradas.reduce((acc, c) => {
-    const ct = custoTotal({
-      valorCompra: num(c.valorCompra),
-      despesas: c.despesas.map((d) => ({ valor: num(d.valor) })),
-    });
-    return acc + num(c.valorResgatado) + num(c.valorRevenda) - ct;
-  }, 0);
-
-  const ativas =
-    porStatus.find((s) => s.statusConsorcio === StatusConsorcio.ATIVA)?._count
-      ._all ?? 0;
-  const canceladas =
-    porStatus.find((s) => s.statusConsorcio === StatusConsorcio.CANCELADA)?._count
-      ._all ?? 0;
-
-  const [etapas, cessionarias] = await Promise.all([
-    prisma.etapa.findMany({ orderBy: { ordem: "asc" }, select: { id: true, nome: true, cor: true } }),
-    prisma.cessionaria.findMany({ select: { id: true, nome: true } }),
-  ]);
-
-  return {
-    totalCartas: ativas + canceladas,
-    ativas,
-    canceladas,
-    creditoTotal: num(creditoAgg._sum.valorCredito),
-    creditoContemplado: num(creditoContemplado._sum.valorCredito),
-    investido,
-    lucroPrevistoTotal: lucroPrevisto({
-      previsaoResgate: num(previsaoAgg._sum.previsaoResgate),
-      custoTotal: investido,
-    }),
-    resultadoRealizado: realizado,
-    aPagar30: {
-      valor: num(aPagar30._sum.valorPrevisto),
-      qtd: aPagar30._count._all,
-    },
-    atrasadas: {
-      valor: num(atrasadasAgg._sum.valorPrevisto),
-      qtd: atrasadasAgg._count._all,
-    },
-    grafEtapas: etapas.map((e) => ({
-      nome: e.nome,
-      cor: e.cor,
-      qtd: porEtapa.find((p) => p.etapaId === e.id)?._count._all ?? 0,
-    })),
-    grafCessionarias: cessionarias
-      .map((c) => ({
-        nome: c.nome,
-        qtd: porCessionaria.find((p) => p.cessionariaId === c.id)?._count._all ?? 0,
-      }))
-      .filter((c) => c.qtd > 0),
   };
 }
 

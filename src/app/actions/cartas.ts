@@ -15,6 +15,7 @@ import {
   type ActionResult,
   fail,
   nullableText,
+  ok,
   parseDateInput,
   parseIntInput,
   parseMoneyInput,
@@ -165,5 +166,5 @@ export async function atualizarCarta(
 
   revalidatePath("/");
   revalidatePath(`/cartas/${cartaId}`);
-  redirect(`/cartas/${cartaId}`);
+  return ok();
 }

@@ -46,8 +46,16 @@ const d = (x: Date | null) => (x ? new Date(x).toISOString().slice(0, 10) : "");
 const m = (x: Prisma.Decimal | null) => (x == null ? "" : String(Number(x.toString())));
 
 export async function getCartaFormValues(id: string): Promise<CartaFormValues> {
+  const v = await getCartaFormValuesOrNull(id);
+  if (!v) notFound();
+  return v;
+}
+
+export async function getCartaFormValuesOrNull(
+  id: string,
+): Promise<CartaFormValues | null> {
   const c = await prisma.carta.findUnique({ where: { id } });
-  if (!c) notFound();
+  if (!c) return null;
 
   return {
     id: c.id,

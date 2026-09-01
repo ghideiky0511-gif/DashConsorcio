@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,11 +28,26 @@ type Opcoes = {
 const TEXTAREA_CLS =
   "w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
+function Secao({
+  titulo,
+  compact,
+  children,
+}: {
+  titulo: string;
+  compact?: boolean;
+  children: ReactNode;
+}) {
   return (
     <section className="rounded-lg border bg-card p-4">
       <h2 className="mb-4 text-sm font-medium">{titulo}</h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+      <div
+        className={cn(
+          "grid gap-4",
+          compact ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3",
+        )}
+      >
+        {children}
+      </div>
     </section>
   );
 }
@@ -118,16 +135,32 @@ export function CartaForm({
   mode,
   opcoes,
   values,
+  onSuccess,
+  compact,
 }: {
   mode: "criar" | "editar";
   opcoes: Opcoes;
   values?: CartaFormValues;
+  /** Chamado após salvar com sucesso (modo editar). Sem isto, navega para o detalhe. */
+  onSuccess?: () => void;
+  /** Layout de uma coluna (para o painel lateral). */
+  compact?: boolean;
 }) {
+  const router = useRouter();
   const action =
     mode === "editar" && values
       ? atualizarCarta.bind(null, values.id)
       : criarCarta;
   const [state, formAction, pending] = useActionState(action, null);
+
+  useEffect(() => {
+    if (state?.ok && mode === "editar" && values) {
+      toast.success("Carta salva.");
+      if (onSuccess) onSuccess();
+      else router.push(`/cartas/${values.id}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   const fe = state && !state.ok ? state.fieldErrors : undefined;
   const e = (name: string) => fe?.[name];
@@ -135,7 +168,7 @@ export function CartaForm({
 
   return (
     <form action={formAction} className="space-y-4">
-      <Secao titulo="Identificação">
+      <Secao titulo="Identificação" compact={compact}>
         <Campo label="Controle interno" name="codigo" defaultValue={d("codigo")} error={e("codigo")} required />
         <Selecao
           label="Cessionária"
@@ -173,7 +206,7 @@ export function CartaForm({
         <Selecao label="Tipo de saída" name="tipoSaida" defaultValue={d("tipoSaida")} error={e("tipoSaida")} incluirVazio options={Object.entries(tipoSaidaLabel)} />
       </Secao>
 
-      <Secao titulo="Financeiro">
+      <Secao titulo="Financeiro" compact={compact}>
         <Campo label="Crédito atual (R$)" name="valorCredito" defaultValue={d("valorCredito")} error={e("valorCredito")} placeholder="0,00" />
         <Campo label="Crédito na contemplação (R$)" name="valorCreditoContemplacao" defaultValue={d("valorCreditoContemplacao")} error={e("valorCreditoContemplacao")} placeholder="0,00" />
         <Campo label="Percentual pago (%)" name="percentualPago" defaultValue={d("percentualPago")} error={e("percentualPago")} placeholder="70" />
@@ -183,14 +216,14 @@ export function CartaForm({
         <Campo label="Valor de revenda (R$)" name="valorRevenda" defaultValue={d("valorRevenda")} error={e("valorRevenda")} placeholder="0,00" />
       </Secao>
 
-      <Secao titulo="Parcelamento">
+      <Secao titulo="Parcelamento" compact={compact}>
         <Campo label="Parcelas totais" name="parcelasTotais" defaultValue={d("parcelasTotais")} error={e("parcelasTotais")} type="number" />
         <Campo label="Parcelas quitadas" name="parcelasQuitadas" defaultValue={d("parcelasQuitadas")} error={e("parcelasQuitadas")} type="number" />
         <Campo label="Valor da parcela (R$)" name="parcelaValor" defaultValue={d("parcelaValor")} error={e("parcelaValor")} placeholder="0,00" />
         <Campo label="Dia de vencimento" name="diaVencimento" defaultValue={d("diaVencimento")} error={e("diaVencimento")} type="number" />
       </Secao>
 
-      <Secao titulo="Datas do processo">
+      <Secao titulo="Datas do processo" compact={compact}>
         <Campo label="Data da compra" name="dataCompra" defaultValue={d("dataCompra")} error={e("dataCompra")} type="date" />
         <Campo label="Cadastro BOLSA" name="dataCadastroBolsa" defaultValue={d("dataCadastroBolsa")} error={e("dataCadastroBolsa")} type="date" />
         <Campo label="Encerramento do grupo" name="encerramentoGrupo" defaultValue={d("encerramentoGrupo")} error={e("encerramentoGrupo")} type="date" />
@@ -205,7 +238,7 @@ export function CartaForm({
         <Campo label="Data da revenda" name="dataRevenda" defaultValue={d("dataRevenda")} error={e("dataRevenda")} type="date" />
       </Secao>
 
-      <Secao titulo="Observações">
+      <Secao titulo="Observações" compact={compact}>
         <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
           <Label htmlFor="observacoes">
             Pendências (documento pendente, etc.)
