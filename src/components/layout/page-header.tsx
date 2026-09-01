@@ -14,7 +14,7 @@ export function PageHeader({
       <div>
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
         {description && (
-          <p className="mt-1 text-sm text-muted">{description}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         )}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
@@ -24,7 +24,7 @@ export function PageHeader({
 
 export function Placeholder({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed bg-surface p-8 text-sm text-muted">
+    <div className="rounded-lg border border-dashed bg-card p-8 text-sm text-muted-foreground">
       {children}
     </div>
   );

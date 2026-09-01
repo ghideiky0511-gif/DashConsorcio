@@ -21,10 +21,10 @@ export default function CarteiraPage() {
         {kpis.map((label) => (
           <div
             key={label}
-            className="rounded-lg border bg-surface p-4"
+            className="rounded-lg border bg-card p-4"
           >
-            <div className="text-xs text-muted">{label}</div>
-            <div className="mt-2 text-lg font-semibold text-muted/50">—</div>
+            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="mt-2 text-lg font-semibold text-muted-foreground/50">—</div>
           </div>
         ))}
       </div>

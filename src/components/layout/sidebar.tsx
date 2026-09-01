@@ -39,7 +39,7 @@ export function Sidebar({ isAdmin }: { isAdmin: boolean }) {
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         isActive(href)
           ? "bg-primary text-primary-foreground"
-          : "text-muted hover:bg-background hover:text-foreground",
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
       )}
     >
       <Icon className="size-4 shrink-0" />
@@ -48,7 +48,7 @@ export function Sidebar({ isAdmin }: { isAdmin: boolean }) {
   );
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r bg-surface">
+    <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar">
       <div className="flex h-14 items-center gap-2 border-b px-5">
         <span className="grid size-7 place-items-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
           HH
@@ -63,7 +63,7 @@ export function Sidebar({ isAdmin }: { isAdmin: boolean }) {
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {principal.map(renderItem)}
 
-        <div className="mt-6 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted">
+        <div className="mt-6 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Gerência
         </div>
         {secundario.filter((i) => !i.adminOnly || isAdmin).map(renderItem)}

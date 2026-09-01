@@ -2,6 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
@@ -55,36 +58,36 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={entrar} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm">
-        E-mail
-        <input
+    <form onSubmit={entrar} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="email">E-mail</Label>
+        <Input
+          id="email"
           type="email"
           autoComplete="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
         />
-      </label>
+      </div>
 
-      <label className="flex flex-col gap-1 text-sm">
-        Senha
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="senha">Senha</Label>
+        <Input
+          id="senha"
           type="password"
           autoComplete="current-password"
           required
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
-          className="rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
         />
-      </label>
+      </div>
 
       {msg && (
         <p
           className={
             msg.tone === "erro"
-              ? "text-sm text-negative"
+              ? "text-sm text-destructive"
               : "text-sm text-positive"
           }
         >
@@ -92,19 +95,15 @@ export function LoginForm() {
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-      >
+      <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Entrando…" : "Entrar"}
-      </button>
+      </Button>
 
       <button
         type="button"
         onClick={magicLink}
         disabled={pending}
-        className="text-sm text-muted underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50"
+        className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50"
       >
         Enviar link de acesso por e-mail
       </button>

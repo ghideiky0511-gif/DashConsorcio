@@ -14,6 +14,6 @@ export default defineConfig({
     // O runtime da app usa a conexão POOLED (DATABASE_URL) via driver adapter em src/lib/db.ts.
     url: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
     // Opcional: um banco separado para o shadow das migrations (Supabase costuma exigir).
-    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL,
+    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL || undefined,
   },
 });

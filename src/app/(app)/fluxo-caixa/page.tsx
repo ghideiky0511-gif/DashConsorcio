@@ -9,13 +9,13 @@ export default function FluxoCaixaPage() {
       />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-lg border bg-surface p-4">
-          <div className="text-xs text-muted">Saldo em caixa hoje</div>
-          <div className="mt-2 text-2xl font-semibold text-muted/50">—</div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-xs text-muted-foreground">Saldo em caixa hoje</div>
+          <div className="mt-2 text-2xl font-semibold text-muted-foreground/50">—</div>
         </div>
-        <div className="rounded-lg border bg-surface p-4">
-          <div className="text-xs text-muted">Previsto para o fim do mês</div>
-          <div className="mt-2 text-2xl font-semibold text-muted/50">—</div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-xs text-muted-foreground">Previsto para o fim do mês</div>
+          <div className="mt-2 text-2xl font-semibold text-muted-foreground/50">—</div>
         </div>
       </div>
 
