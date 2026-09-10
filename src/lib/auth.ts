@@ -26,10 +26,32 @@ export async function requireUser() {
   return user;
 }
 
-/** Garante um profile ativo; redireciona para /login caso contrário. */
+/**
+ * Garante um profile ativo.
+ * - Sem sessão Supabase → /login.
+ * - Com sessão mas sem profile (ou inativo) → /sem-acesso.
+ *
+ * A distinção é essencial: mandar "sessão sem profile" para /login cria loop
+ * infinito de redirect (o proxy vê a sessão válida e devolve para cá).
+ */
 export async function requireProfile() {
-  const profile = await getProfile();
-  if (!profile || !profile.ativo) redirect("/login");
+  const user = await getUser();
+  if (!user) redirect("/login");
+
+  const profile = await prisma.profile.findUnique({ where: { id: user.id } });
+
+  if (!profile) {
+    console.warn(
+      `[auth] usuário ${user.id} (${user.email}) autenticado mas sem linha em profiles. ` +
+        `Rode "npm run check:auth" para diagnosticar.`,
+    );
+    redirect("/sem-acesso");
+  }
+  if (!profile.ativo) {
+    console.warn(`[auth] profile ${profile.email} está inativo (ativo=false).`);
+    redirect("/sem-acesso");
+  }
+
   return profile;
 }
 
