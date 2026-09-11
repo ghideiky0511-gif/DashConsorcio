@@ -236,6 +236,7 @@ export function CartaForm({
         <Campo label="Pedido de resgate" name="dataPedidoResgate" defaultValue={d("dataPedidoResgate")} error={e("dataPedidoResgate")} type="date" />
         <Campo label="Data do resgate" name="dataResgate" defaultValue={d("dataResgate")} error={e("dataResgate")} type="date" />
         <Campo label="Data da revenda" name="dataRevenda" defaultValue={d("dataRevenda")} error={e("dataRevenda")} type="date" />
+        <Campo label="Próxima assembleia" name="proximaAssembleia" defaultValue={d("proximaAssembleia")} error={e("proximaAssembleia")} type="date" />
       </Secao>
 
       <Secao titulo="Observações" compact={compact}>

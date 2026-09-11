@@ -95,7 +95,15 @@ export default async function CartaPage({ params }: PageProps<"/cartas/[id]">) {
           />
         </TabsContent>
         <TabsContent value="parcelas" className="pt-4">
-          <ParcelasTab parcelas={carta.parcelas} />
+          <ParcelasTab
+            cartaId={carta.id}
+            parcelas={carta.parcelas}
+            parcelasTotais={carta.parcelasTotais}
+            parcelasQuitadas={carta.parcelasQuitadas}
+            parcelaValor={carta.parcelaValor}
+            diaVencimento={carta.diaVencimento}
+            podeEditar={podeEditar}
+          />
         </TabsContent>
         <TabsContent value="contrapartes" className="pt-4">
           <ContrapartesTab

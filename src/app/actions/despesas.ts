@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireEditor } from "@/lib/auth";
-import { TipoDespesa } from "@/generated/prisma/client";
+import { tipoDespesaLabel } from "@/lib/labels";
+import {
+  CategoriaMovimento,
+  TipoDespesa,
+  TipoMovimento,
+} from "@/generated/prisma/client";
 import {
   type ActionResult,
   fail,
@@ -34,7 +39,15 @@ function parse(formData: FormData) {
 
 function revalidar(cartaId: string) {
   revalidatePath(`/cartas/${cartaId}`);
+  revalidatePath("/fluxo-caixa");
   revalidatePath("/");
+}
+
+function descricaoMovimento(
+  tipo: TipoDespesa,
+  descricao: string | null | undefined,
+) {
+  return descricao ? `${tipoDespesaLabel[tipo]} — ${descricao}` : tipoDespesaLabel[tipo];
 }
 
 export async function criarDespesa(
@@ -45,9 +58,29 @@ export async function criarDespesa(
   await requireEditor();
   const parsed = parse(formData);
   if (!parsed.success) return fail(firstZodError(parsed.error));
+  const { tipo, descricao, valor, data } = parsed.data;
+  const dataMovimento = data ?? new Date();
 
   try {
-    await prisma.despesaCarta.create({ data: { cartaId, ...parsed.data } });
+    await prisma.despesaCarta.create({
+      data: {
+        cartaId,
+        tipo,
+        descricao,
+        valor,
+        data,
+        movimentos: {
+          create: {
+            tipo: TipoMovimento.SAIDA,
+            categoria: CategoriaMovimento.DESPESA_CARTA,
+            descricao: descricaoMovimento(tipo, descricao),
+            valor,
+            data: dataMovimento,
+            cartaId,
+          },
+        },
+      },
+    });
   } catch (e) {
     return fail(prismaErrorMessage(e));
   }
@@ -66,9 +99,38 @@ export async function atualizarDespesa(
 
   const parsed = parse(formData);
   if (!parsed.success) return fail(firstZodError(parsed.error));
+  const { tipo, descricao, valor, data } = parsed.data;
+  const dataMovimento = data ?? new Date();
 
   try {
-    await prisma.despesaCarta.update({ where: { id }, data: parsed.data });
+    await prisma.$transaction(async (tx) => {
+      await tx.despesaCarta.update({
+        where: { id },
+        data: { tipo, descricao, valor, data },
+      });
+
+      const movimentoExistente = await tx.movimentoCaixa.findFirst({
+        where: { despesaId: id },
+        select: { id: true },
+      });
+      const dadosMovimento = {
+        tipo: TipoMovimento.SAIDA,
+        categoria: CategoriaMovimento.DESPESA_CARTA,
+        descricao: descricaoMovimento(tipo, descricao),
+        valor,
+        data: dataMovimento,
+      };
+      if (movimentoExistente) {
+        await tx.movimentoCaixa.update({
+          where: { id: movimentoExistente.id },
+          data: dadosMovimento,
+        });
+      } else {
+        await tx.movimentoCaixa.create({
+          data: { ...dadosMovimento, cartaId, despesaId: id },
+        });
+      }
+    });
   } catch (e) {
     return fail(prismaErrorMessage(e));
   }
@@ -82,7 +144,10 @@ export async function excluirDespesa(
 ): Promise<ActionResult> {
   await requireEditor();
   try {
-    await prisma.despesaCarta.delete({ where: { id } });
+    await prisma.$transaction([
+      prisma.movimentoCaixa.deleteMany({ where: { despesaId: id } }),
+      prisma.despesaCarta.delete({ where: { id } }),
+    ]);
   } catch (e) {
     return fail(prismaErrorMessage(e));
   }

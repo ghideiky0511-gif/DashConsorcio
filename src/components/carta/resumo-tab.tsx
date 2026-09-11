@@ -121,6 +121,9 @@ export function ResumoTab({ carta }: { carta: CartaDetalhe }) {
         <Campo label="Resgate / Revenda">
           {formatDate(carta.dataResgate ?? carta.dataRevenda)}
         </Campo>
+        <Campo label="Próxima assembleia">
+          {formatDate(carta.proximaAssembleia)}
+        </Campo>
       </Bloco>
 
       {(carta.observacoes || carta.observacoesGerais) && (

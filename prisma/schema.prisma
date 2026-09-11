@@ -230,6 +230,7 @@ model Carta {
   contempladaEm       DateTime? @db.Date
   dataResgate         DateTime? @db.Date
   dataRevenda         DateTime? @db.Date
+  proximaAssembleia   DateTime? @db.Date // data da próxima assembleia do grupo (alerta no Fluxo de Caixa)
 
   formaContemplacao FormaContemplacao?
 

@@ -40,6 +40,7 @@ export type CartaFormValues = {
   dataPedidoResgate: string;
   dataResgate: string;
   dataRevenda: string;
+  proximaAssembleia: string;
 };
 
 const d = (x: Date | null) => (x ? new Date(x).toISOString().slice(0, 10) : "");
@@ -98,5 +99,6 @@ export async function getCartaFormValuesOrNull(
     dataPedidoResgate: d(c.dataPedidoResgate),
     dataResgate: d(c.dataResgate),
     dataRevenda: d(c.dataRevenda),
+    proximaAssembleia: d(c.proximaAssembleia),
   };
 }

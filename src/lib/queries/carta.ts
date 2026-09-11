@@ -87,6 +87,7 @@ export type CartaDetalhe = {
   contempladaEm: Date | null;
   dataResgate: Date | null;
   dataRevenda: Date | null;
+  proximaAssembleia: Date | null;
   parcelasTotais: number | null;
   parcelasQuitadas: number | null;
   parcelaValor: number | null;
@@ -213,6 +214,7 @@ export async function getCarta(id: string): Promise<CartaDetalhe> {
     contempladaEm: c.contempladaEm,
     dataResgate: c.dataResgate,
     dataRevenda: c.dataRevenda,
+    proximaAssembleia: c.proximaAssembleia,
     parcelasTotais: c.parcelasTotais,
     parcelasQuitadas: c.parcelasQuitadas,
     parcelaValor: nn(c.parcelaValor),

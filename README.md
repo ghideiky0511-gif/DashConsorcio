@@ -117,9 +117,18 @@ src/
 
 ## Roadmap (fases)
 
-- **A — Scaffold & infra** ✅ _(esta entrega)_
-- **B — Carteira & cartas:** tabela com filtros, detalhe, CRUD, despesas, acesso
-- **C — Parcelas & Fluxo de Caixa:** cronograma, marcar pago, projeção 12m
+- **A — Scaffold & infra** ✅
+- **B — Carteira & cartas** ✅ tabela com filtros, detalhe, CRUD, Visão Geral interativa
+- **C — Parcelas & Fluxo de Caixa** ✅ concluída — gerar cronograma, marcar parcela
+  paga (grava `MovimentoCaixa`), `/fluxo-caixa` com KPIs (saldo, livre p/ novas cartas,
+  pago/a pagar no mês), abas Saldo & a pagar / Projeção 12 meses / Este mês, e alertas
+  de parcela vencendo + assembleia próxima (sino no header + painel na página). Despesas
+  lançadas na carta também entram automaticamente no caixa. Falta rodar `npm run
+  db:deploy` para aplicar a migration em produção.
 - **D — Documentos & Importação:** Storage + importador da planilha (36 colunas)
 - **E — Usuários & permissões:** papéis nas actions + RLS no Supabase
 - **F — Acabamento & deploy**
+
+**Fora do plano original:** Precificador de cartas (`/precificador`) — motores de carta
+ativa/cancelada, curva de juros CDI, agente de IA para ler extratos. ✅ concluído,
+ver `docs/precificacao/`.

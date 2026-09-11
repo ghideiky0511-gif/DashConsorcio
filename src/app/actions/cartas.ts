@@ -36,6 +36,7 @@ const DATE_FIELDS = [
   "dataPedidoResgate",
   "dataResgate",
   "dataRevenda",
+  "proximaAssembleia",
 ] as const;
 
 const schema = z.object({
@@ -75,6 +76,7 @@ const schema = z.object({
   dataPedidoResgate: z.date().nullable(),
   dataResgate: z.date().nullable(),
   dataRevenda: z.date().nullable(),
+  proximaAssembleia: z.date().nullable(),
 });
 
 function parseForm(fd: FormData) {
