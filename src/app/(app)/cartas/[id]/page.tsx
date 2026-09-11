@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AcessoTab } from "@/components/carta/acesso-tab";
 import { ContrapartesTab } from "@/components/carta/contrapartes-tab";
 import { CustosTab } from "@/components/carta/custos-tab";
+import { DocumentosTab } from "@/components/carta/documentos-tab";
 import { ParcelasTab } from "@/components/carta/parcelas-tab";
 import { ProcessoTab } from "@/components/carta/processo-tab";
 import { ResumoTab } from "@/components/carta/resumo-tab";
@@ -120,10 +121,11 @@ export default async function CartaPage({ params }: PageProps<"/cartas/[id]">) {
           />
         </TabsContent>
         <TabsContent value="documentos" className="pt-4">
-          <div className="rounded-lg border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
-            Upload e download de documentos (bucket privado do Supabase) entram na
-            Fase D.
-          </div>
+          <DocumentosTab
+            cartaId={carta.id}
+            documentos={carta.documentos}
+            podeEditar={podeEditar}
+          />
         </TabsContent>
       </Tabs>
     </div>

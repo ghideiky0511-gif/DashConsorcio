@@ -123,9 +123,14 @@ src/
   paga (grava `MovimentoCaixa`), `/fluxo-caixa` com KPIs (saldo, livre p/ novas cartas,
   pago/a pagar no mês), abas Saldo & a pagar / Projeção 12 meses / Este mês, e alertas
   de parcela vencendo + assembleia próxima (sino no header + painel na página). Despesas
-  lançadas na carta também entram automaticamente no caixa. Falta rodar `npm run
-  db:deploy` para aplicar a migration em produção.
-- **D — Documentos & Importação:** Storage + importador da planilha (36 colunas)
+  lançadas na carta também entram automaticamente no caixa.
+- **D — Documentos & Importação** ⏳ em andamento — aba Documentos da carta com
+  upload/download (bucket privado `documentos` no Supabase Storage, signed URL) pronta;
+  `/importar` lê `.csv` (mapeamento das 36 colunas com auto-match + correção manual,
+  prévia com avisos/erros, gravação em lote). `.xlsx` direto ainda não é suportado —
+  as bibliotecas de parsing disponíveis no npm têm CVEs abertos ou dependências
+  vulneráveis; exporte a planilha como CSV antes de importar. Falta rodar `npm run
+  db:deploy` (bucket) e testar com uma planilha real.
 - **E — Usuários & permissões:** papéis nas actions + RLS no Supabase
 - **F — Acabamento & deploy**
 

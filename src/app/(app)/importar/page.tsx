@@ -1,16 +1,19 @@
-import { PageHeader, Placeholder } from "@/components/layout/page-header";
+import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
+import { ImportarWizard } from "@/components/importar/importar-wizard";
+import { requireProfile, canEdit } from "@/lib/auth";
 
-export default function ImportarPage() {
+export default async function ImportarPage() {
+  const profile = await requireProfile();
+  if (!canEdit(profile.role)) redirect("/");
+
   return (
     <>
       <PageHeader
         title="Importar planilha"
-        description="Carga da planilha de controle (.xlsx / .csv) com mapeamento das 36 colunas."
+        description="Carga da planilha de controle (.csv) com mapeamento das 36 colunas."
       />
-      <Placeholder>
-        O upload, o mapeamento pré-preenchido pelo template real e a gravação em
-        lote (Carta + Acesso + Cedente + despesas por linha) entram na Fase D.
-      </Placeholder>
+      <ImportarWizard />
     </>
   );
 }

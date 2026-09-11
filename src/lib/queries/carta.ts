@@ -14,6 +14,7 @@ import type {
   StatusParcela,
   TipoBem,
   TipoDespesa,
+  TipoDocumento,
   TipoSaida,
 } from "@/generated/prisma/client";
 
@@ -54,6 +55,16 @@ export type ParcelaResumo = {
 };
 
 export type MarcoProcesso = { etapaOrdem: number; nome: string; data: Date | null };
+
+export type DocumentoResumo = {
+  id: string;
+  tipo: TipoDocumento;
+  nome: string;
+  tamanho: number;
+  mimeType: string;
+  createdAt: Date;
+  uploadedByNome: string;
+};
 
 export type CartaDetalhe = {
   id: string;
@@ -104,6 +115,7 @@ export type CartaDetalhe = {
   despesas: Despesa[];
   contrapartes: Contraparte[];
   parcelas: ParcelaResumo[];
+  documentos: DocumentoResumo[];
   historico: {
     id: string;
     data: Date;
@@ -133,6 +145,10 @@ export async function getCarta(id: string): Promise<CartaDetalhe> {
       despesas: { orderBy: [{ data: "asc" }, { tipo: "asc" }] },
       contrapartes: { orderBy: { papel: "asc" } },
       parcelas: { orderBy: { numero: "asc" } },
+      documentos: {
+        orderBy: { createdAt: "desc" },
+        include: { uploadedBy: { select: { nome: true } } },
+      },
       etapaHistorico: {
         orderBy: { data: "desc" },
         include: {
@@ -249,6 +265,15 @@ export async function getCarta(id: string): Promise<CartaDetalhe> {
       status: p.status,
       valorPago: nn(p.valorPago),
       dataPagamento: p.dataPagamento,
+    })),
+    documentos: c.documentos.map((doc) => ({
+      id: doc.id,
+      tipo: doc.tipo,
+      nome: doc.nome,
+      tamanho: doc.tamanho,
+      mimeType: doc.mimeType,
+      createdAt: doc.createdAt,
+      uploadedByNome: doc.uploadedBy.nome,
     })),
     historico: c.etapaHistorico.map((h) => ({
       id: h.id,

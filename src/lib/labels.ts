@@ -83,6 +83,10 @@ export const opcoesTipoDespesa = Object.entries(tipoDespesaLabel) as [
   TipoDespesa,
   string,
 ][];
+export const opcoesTipoDocumento = Object.entries(tipoDocumentoLabel) as [
+  TipoDocumento,
+  string,
+][];
 export const opcoesPapelContraparte = Object.entries(papelContraparteLabel) as [
   PapelContraparte,
   string,
