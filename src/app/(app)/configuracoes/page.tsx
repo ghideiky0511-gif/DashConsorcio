@@ -27,7 +27,64 @@ const camposCessionaria: FieldDef[] = [
 const camposAdministradora: FieldDef[] = [
   { name: "nome", label: "Nome", required: true },
   { name: "cnpj", label: "CNPJ", placeholder: "00.000.000/0000-00" },
-  { name: "contato", label: "Contato", placeholder: "e-mail ou telefone" },
+  { name: "contato", label: "Contato", placeholder: "e-mail ou telefone", showInTable: false },
+  {
+    name: "tipoLanceAceito",
+    label: "Lance aceito (carta ativa)",
+    type: "select",
+    showInTable: true,
+    options: [
+      { value: "CONTEMPLACAO", label: "Só contemplação" },
+      { value: "QUITACAO", label: "Só quitação" },
+      { value: "AMBOS", label: "Ambos" },
+    ],
+    hint: "Usado pelo precificador pra saber qual variante de carta ativa oferecer.",
+  },
+  {
+    name: "prazoLiberacaoQuitacaoDias",
+    label: "Carência do lance de quitação (dias)",
+    type: "number",
+    showInTable: false,
+    placeholder: "180",
+  },
+  {
+    name: "indiceCorrecao",
+    label: "Índice de correção (carta cancelada)",
+    type: "select",
+    showInTable: false,
+    options: [
+      { value: "IPCA", label: "IPCA" },
+      { value: "INCC", label: "INCC" },
+      { value: "IGPM", label: "IGP-M" },
+      { value: "OUTRO", label: "Outro" },
+    ],
+  },
+  {
+    name: "resgateCorrigido",
+    label: "Resgate sai corrigido pelo índice",
+    type: "toggle",
+    showInTable: false,
+  },
+  {
+    name: "multaExclusaoPct",
+    label: "Multa de exclusão (fração)",
+    type: "number",
+    step: 0.01,
+    showInTable: false,
+    placeholder: "ex.: 0.10 para 10%",
+    hint: "Fração retida do excluído, não percentual (0.10 = 10%).",
+  },
+  {
+    name: "momentoResgate",
+    label: "Momento do resgate",
+    type: "select",
+    showInTable: false,
+    options: [
+      { value: "ENCERRAMENTO_GRUPO", label: "Encerramento do grupo" },
+      { value: "SORTEIO_EXCLUIDOS", label: "Sorteio de excluídos" },
+      { value: "PRAZO_FIXO", label: "Prazo fixo" },
+    ],
+  },
 ];
 
 export default async function ConfiguracoesPage() {

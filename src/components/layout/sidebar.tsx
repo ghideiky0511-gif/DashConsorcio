@@ -8,6 +8,7 @@ import {
   Upload,
   Settings,
   Users,
+  Calculator,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ type Item = { href: string; label: string; icon: LucideIcon; adminOnly?: boolean
 const principal: Item[] = [
   { href: "/", label: "Carteira", icon: LayoutGrid },
   { href: "/fluxo-caixa", label: "Fluxo de Caixa", icon: Wallet },
+  { href: "/precificador", label: "Precificador", icon: Calculator },
 ];
 
 const secundario: Item[] = [

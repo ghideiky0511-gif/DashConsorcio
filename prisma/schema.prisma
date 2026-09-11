@@ -87,6 +87,34 @@ enum CategoriaMovimento {
   OUTRO
 }
 
+enum MotorPrecificacao {
+  ATIVA // consorciado ativo/contemplável — modelo de "sobra" + lance
+  CANCELADA // consorciado excluído — compra do direito ao resgate futuro
+}
+
+enum IndiceCorrecao {
+  IPCA
+  INCC
+  IGPM
+  OUTRO
+}
+
+enum MomentoResgate {
+  ENCERRAMENTO_GRUPO
+  SORTEIO_EXCLUIDOS
+  PRAZO_FIXO
+}
+
+/// Que tipo de lance a administradora aceita pra contemplar uma cota ativa.
+enum TipoLanceAceito {
+  /// Só contempla; o saldo devedor continua a pagar em parcelas.
+  CONTEMPLACAO
+  /// Quita o saldo devedor inteiro junto com a contemplação — mas o crédito só
+  /// é liberado depois de um prazo de carência (normalmente 180 dias).
+  QUITACAO
+  AMBOS
+}
+
 // ────────────────────────────── Modelos ──────────────────────────────
 
 /// Espelha auth.users do Supabase; `id` = auth.users.id.
@@ -102,6 +130,7 @@ model Profile {
   cartasCriadas   Carta[]          @relation("CartaCriadaPor")
   etapaHistoricos EtapaHistorico[]
   documentos      Documento[]
+  precificacoes   Precificacao[]
 
   @@map("profiles")
 }
@@ -130,7 +159,18 @@ model Administradora {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  cartas Carta[]
+  // Regras de resgate para consorciado excluído (usadas pelo precificador).
+  indiceCorrecao   IndiceCorrecao?
+  resgateCorrigido Boolean         @default(true) // devolve o fundo comum corrigido pelo índice?
+  multaExclusaoPct Decimal?        @db.Decimal(7, 4) // fração 0..1 retida do excluído
+  momentoResgate   MomentoResgate?
+
+  // Regras de lance para carta ATIVA (usadas pelo precificador).
+  tipoLanceAceito            TipoLanceAceito?
+  prazoLiberacaoQuitacaoDias Int? // padrão de mercado: 180 dias
+
+  cartas        Carta[]
+  precificacoes Precificacao[]
 
   @@map("administradoras")
 }
@@ -155,14 +195,14 @@ model Etapa {
 
 /// Carta de consórcio comprada pela HH. Uma linha da planilha = uma Carta.
 model Carta {
-  id              String  @id @default(uuid()) @db.Uuid
-  codigo          String  @unique // "Controle Interno SSA"
-  cessionariaId   String  @db.Uuid
-  administradoraId String @db.Uuid
-  grupo           String
-  cota            String
-  contrato        String?
-  origem          String? // "Origem (intermediador)"
+  id               String  @id @default(uuid()) @db.Uuid
+  codigo           String  @unique // "Controle Interno SSA"
+  cessionariaId    String  @db.Uuid
+  administradoraId String  @db.Uuid
+  grupo            String
+  cota             String
+  contrato         String?
+  origem           String? // "Origem (intermediador)"
 
   tipoBem         TipoBem         @default(OUTRO)
   statusConsorcio StatusConsorcio @default(ATIVA)
@@ -217,6 +257,7 @@ model Carta {
   documentos     Documento[]
   etapaHistorico EtapaHistorico[]
   movimentos     MovimentoCaixa[]
+  precificacoes  Precificacao[]
 
   @@index([cessionariaId])
   @@index([administradoraId])
@@ -380,4 +421,78 @@ model ConfigCaixa {
   updatedAt        DateTime @updatedAt
 
   @@map("config_caixa")
+}
+
+/// Foto diária das taxas de juros usadas na precificação — mantida para que cada
+/// cálculo seja reproduzível mesmo depois de o mercado mudar.
+model CurvaJurosSnapshot {
+  id            String   @id @default(uuid()) @db.Uuid
+  data          DateTime @unique @db.Date
+  fonte         String // ex.: "BCB SGS 12 + Tesouro Prefixado"
+  cdiAnual      Decimal  @db.Decimal(9, 6) // CDI a.a. corrente, fração
+  ipcaProjAnual Decimal? @db.Decimal(9, 6) // projeção IPCA (Focus), fração
+  /// Curva prefixada: [{ meses: number, taxaAnual: number }] ordenada por prazo.
+  pontos        Json
+  createdAt     DateTime @default(now())
+
+  precificacoes Precificacao[]
+
+  @@map("curva_juros_snapshot")
+}
+
+/// Um cálculo de precificação de carta. Guarda os inputs, as assunções e o
+/// resultado — nada é recalculado depois; a carta pode mudar sem afetar o histórico.
+model Precificacao {
+  id    String            @id @default(uuid()) @db.Uuid
+  motor MotorPrecificacao
+
+  // Vínculo opcional: dá para precificar uma carta ainda não cadastrada.
+  cartaId          String? @db.Uuid
+  administradoraId String? @db.Uuid
+
+  // Snapshot dos dados da carta no momento do cálculo.
+  administradoraNome   String?
+  grupo                String?
+  cota                 String?
+  creditoAtual         Decimal   @db.Decimal(14, 2)
+  percentualPago       Decimal?  @db.Decimal(7, 4) // fração 0..1 — só carta cancelada
+  fundoComumPago       Decimal?  @db.Decimal(14, 2) // base real do resgate, quando o extrato traz
+  encerramentoGrupo    DateTime? @db.Date // só carta cancelada
+  dataReferencia       DateTime  @db.Date // "hoje" do cálculo
+  mesesAteEncerramento Int // cancelada: até o encerramento · ativa: parcelas restantes
+
+  // Assunções.
+  indiceCorrecaoAnual Decimal? @db.Decimal(9, 6) // fração — só carta cancelada
+  multaExclusaoPct    Decimal  @default(0) @db.Decimal(7, 4)
+  metaMultiploCdi     Decimal  @default(2) @db.Decimal(6, 3)
+  cdiAcumuladoPeriodo Decimal  @db.Decimal(9, 6) // fração, derivado da curva
+  curvaSnapshotId     String?  @db.Uuid
+
+  // Resultado.
+  resgateProjetado Decimal  @db.Decimal(14, 2) // cancelada: resgate · ativa: valor nominal total do fluxo
+  precoJusto       Decimal? @db.Decimal(14, 2)
+  precoOfertado    Decimal? @db.Decimal(14, 2) // o que o operador decidiu propor
+  propostaMdv      Decimal? @db.Decimal(14, 2)
+  propostaObjetiva Decimal? @db.Decimal(14, 2)
+  retornoTotal     Decimal? @db.Decimal(9, 6)
+  retornoMensal    Decimal? @db.Decimal(9, 6)
+  multiploCdi      Decimal? @db.Decimal(9, 4)
+  /// Cenários de sensibilidade: [{ indiceAnual, resgate, retornoTotal, multiploCdi }].
+  cenarios         Json?
+  /// Dump completo do cálculo para auditoria (fluxo da carta ativa, passos, etc.).
+  detalhe          Json?
+
+  observacoes String?
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  carta          Carta?              @relation(fields: [cartaId], references: [id], onDelete: SetNull)
+  administradora Administradora?     @relation(fields: [administradoraId], references: [id], onDelete: SetNull)
+  curvaSnapshot  CurvaJurosSnapshot? @relation(fields: [curvaSnapshotId], references: [id], onDelete: SetNull)
+  createdBy      Profile             @relation(fields: [createdById], references: [id])
+
+  @@index([cartaId])
+  @@index([createdAt])
+  @@map("precificacoes")
 }

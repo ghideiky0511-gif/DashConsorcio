@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -38,10 +39,15 @@ import type { ActionResult } from "@/lib/action-utils";
 export type FieldDef = {
   name: string;
   label: string;
-  type?: "text" | "toggle";
+  type?: "text" | "toggle" | "select" | "number";
   required?: boolean;
   placeholder?: string;
   showInTable?: boolean;
+  /** Opções do tipo "select". O primeiro valor "" vira "não definido" quando o campo não é obrigatório. */
+  options?: Array<{ value: string; label: string }>;
+  /** Passado direto ao <input type="number"> (ex.: 0.01 pra percentuais). */
+  step?: number;
+  hint?: string;
 };
 
 export type EntityRow = { id: string; nome: string; _count?: { cartas: number } } & Record<
@@ -132,6 +138,9 @@ export function EntityCrud({
                         ) : (
                           <Badge variant="outline">Não</Badge>
                         )
+                      ) : f.type === "select" ? (
+                        f.options?.find((o) => o.value === String(row[f.name] ?? ""))
+                          ?.label || <span className="text-muted-foreground">—</span>
                       ) : (
                         (row[f.name] as string) || (
                           <span className="text-muted-foreground">—</span>
@@ -260,14 +269,41 @@ function EntityDialog({
             <input type="hidden" name="id" value={values.id} />
           ) : null}
 
-          {fields.map((f) =>
-            f.type === "toggle" ? (
-              <ToggleField
-                key={f.name}
-                field={f}
-                defaultChecked={values ? Boolean(values[f.name]) : true}
-              />
-            ) : (
+          {fields.map((f) => {
+            if (f.type === "toggle") {
+              return (
+                <ToggleField
+                  key={f.name}
+                  field={f}
+                  defaultChecked={values ? Boolean(values[f.name]) : true}
+                />
+              );
+            }
+            if (f.type === "select") {
+              return (
+                <div key={f.name} className="space-y-1.5">
+                  <Label htmlFor={f.name}>
+                    {f.label}
+                    {f.required ? " *" : ""}
+                  </Label>
+                  <NativeSelect
+                    id={f.name}
+                    name={f.name}
+                    required={f.required}
+                    defaultValue={values ? String(values[f.name] ?? "") : ""}
+                  >
+                    {!f.required && <option value="">Não definido</option>}
+                    {f.options?.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  {f.hint && <p className="text-xs text-muted-foreground">{f.hint}</p>}
+                </div>
+              );
+            }
+            return (
               <div key={f.name} className="space-y-1.5">
                 <Label htmlFor={f.name}>
                   {f.label}
@@ -276,13 +312,16 @@ function EntityDialog({
                 <Input
                   id={f.name}
                   name={f.name}
+                  type={f.type === "number" ? "number" : "text"}
+                  step={f.step}
                   required={f.required}
                   placeholder={f.placeholder}
                   defaultValue={values ? String(values[f.name] ?? "") : ""}
                 />
+                {f.hint && <p className="text-xs text-muted-foreground">{f.hint}</p>}
               </div>
-            ),
-          )}
+            );
+          })}
 
           {state && !state.ok ? (
             <p className="text-sm text-destructive">{state.error}</p>
