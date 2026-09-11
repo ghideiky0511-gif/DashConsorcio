@@ -52,7 +52,7 @@ export interface EntradaPrecificacaoAtivaNaoContemplada {
   /** Meses restantes até o fim do plano (encerramento do grupo). */
   mesesAteEncerramento: number;
   /** Estimativa própria de em qual mês a contemplação deve sair. Ausente →
-   *  usa `PARAMETROS.ativa.naoContemplada.fatorEsperado` × prazo restante. */
+   *  usa `PARAMETROS.contemplacaoIncerta.fatorEsperado` × prazo restante. */
   mesesAteContemplacaoEstimados?: number;
   /** Custo único de transferência da cota, se houver. */
   taxaTransferencia?: Num;
@@ -106,7 +106,7 @@ export function precificarAtivaNaoContemplada(
       : n(entrada.metaMultiploCdi);
 
   const { fatorOtimista, fatorEsperado, fatorPessimista } =
-    PARAMETROS.ativa.naoContemplada;
+    PARAMETROS.contemplacaoIncerta;
   const mesesEsperado =
     entrada.mesesAteContemplacaoEstimados != null
       ? Math.max(1, Math.trunc(entrada.mesesAteContemplacaoEstimados))

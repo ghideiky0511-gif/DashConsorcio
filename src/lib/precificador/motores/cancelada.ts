@@ -1,6 +1,18 @@
 // Orquestrador da precificação de carta CANCELADA (consorciado excluído).
-// Junta: meses até o encerramento → resgate projetado → preço justo por meta de
-// CDI → propostas de mercado (MDV, Objetiva) → retorno → cenários de sensibilidade.
+//
+// O ganho do negócio só se realiza quando a cota é CONTEMPLADA — e uma carta
+// cancelada pode ser contemplada de duas formas: no sorteio de excluídos (pode
+// sair a qualquer momento) ou, o mais tardar, no encerramento do grupo (aí todo
+// excluído que sobrou é resgatado). Como o mês do sorteio é incerto, tratamos
+// como a mesma incerteza já modelada em `ativa-nao-contemplada.ts`: 3 cenários
+// (otimista/esperado/pessimista, ver `PARAMETROS.contemplacaoIncerta`), com o
+// encerramento do grupo como teto garantido. O "preço justo" principal usa o
+// cenário ESPERADO — não mais o encerramento do grupo puro.
+//
+// Junta: meses até o encerramento (teto) → mês esperado de contemplação →
+// resgate projetado nesse mês → preço justo por meta de CDI → propostas de
+// mercado (MDV, Objetiva, cotadas pelo prazo contratual do grupo) → retorno →
+// cenários de contemplação e de sensibilidade ao índice de correção.
 // Pura (recebe a curva pronta) — coberta por testes.
 
 import {
@@ -68,6 +80,12 @@ export interface EntradaPrecificacaoCancelada {
   metaMultiploCdi?: Num;
   /** Preço que o operador quer avaliar. Ausente → avalia o preço justo. */
   precoOfertado?: Num;
+  /** Estimativa própria de em quantos meses sai o sorteio de excluídos.
+   *  Ausente → `PARAMETROS.contemplacaoIncerta.fatorEsperado` × prazo restante.
+   *  Se a administradora só resgata no encerramento do grupo (sem sorteio de
+   *  excluídos), informe igual a `mesesAteEncerramento` pra eliminar a
+   *  incerteza. */
+  mesesAteContemplacaoEstimados?: number;
 
   // --- mercado ---
   curva: CurvaParaCalculo;
@@ -83,10 +101,22 @@ export interface CenarioSensibilidade {
   multiploCdi: number | null;
 }
 
+export interface CenarioContemplacao {
+  rotulo: string;
+  mesesAteContemplacao: number;
+  resgateProjetado: number;
+  precoJusto: number | null;
+  retornoTotal: number | null;
+  multiploCdi: number | null;
+}
+
 export interface ResultadoPrecificacaoCancelada {
   motor: "CANCELADA";
   dataReferencia: string;
+  /** Teto garantido: se não sortear antes, é resgatado aqui. */
   mesesAteEncerramento: number;
+  /** Mês assumido pro sorteio de excluídos — base do cálculo principal. */
+  mesesAteContemplacaoEstimados: number;
 
   /** crédito × %pago (sem correção nem deságio) — referência. */
   recebivelNominal: number;
@@ -99,11 +129,14 @@ export interface ResultadoPrecificacaoCancelada {
   ipcaProjAnual: number | null;
 
   indiceCorrecaoAnual: number;
+  /** Resgate projetado no mês esperado de contemplação (não no encerramento). */
   resgateProjetado: number;
 
   metaMultiploCdi: number;
   precoJusto: number | null;
 
+  /** Cotadas pelo prazo contratual do grupo (mesesAteEncerramento) — é o que
+   *  os concorrentes usam, não o mês esperado de contemplação. */
   propostaMdv: ResultadoBenchmark;
   propostaObjetiva: ResultadoBenchmark;
 
@@ -111,6 +144,9 @@ export interface ResultadoPrecificacaoCancelada {
   precoAvaliado: number | null;
   retorno: MetricasRetorno | null;
 
+  /** Otimista / esperado / pessimista — quando o sorteio de excluídos sai. */
+  cenariosContemplacao: CenarioContemplacao[];
+  /** Sensibilidade ao índice de correção, no mês esperado de contemplação. */
   cenarios: CenarioSensibilidade[];
   avisos: string[];
 }
@@ -129,7 +165,13 @@ export function precificarCancelada(
   const dataRef = entrada.dataReferencia
     ? new Date(entrada.dataReferencia)
     : new Date();
-  const meses = mesesEntre(dataRef, entrada.encerramentoGrupo);
+  const mesesAteEncerramento = mesesEntre(dataRef, entrada.encerramentoGrupo);
+
+  const { fatorOtimista, fatorEsperado, fatorPessimista } = PARAMETROS.contemplacaoIncerta;
+  const mesesEsperado =
+    entrada.mesesAteContemplacaoEstimados != null
+      ? Math.max(0, Math.trunc(entrada.mesesAteContemplacaoEstimados))
+      : Math.max(0, Math.round(mesesAteEncerramento * fatorEsperado));
 
   const corrigido = entrada.resgateCorrigido !== false;
   const meta =
@@ -149,13 +191,7 @@ export function precificarCancelada(
 
   const recebivelNominal = round2((credito * pct) / 100);
 
-  // Mercado.
-  const cdiAnual = n(entrada.curva.cdiAnual);
-  const taxaCurva = interpolarCurva(entrada.curva.pontos ?? [], meses);
-  const taxaParaCdi = taxaCurva ?? cdiAnual;
-  const cdiAcumuladoPeriodo = round4(taxaAcumulada(taxaParaCdi, meses));
-
-  const resgateComIndice = (indiceAnual: number) =>
+  const resgateComIndiceEMeses = (indiceAnual: number, meses: number) =>
     projetarResgate({
       base: baseResgate,
       indiceCorrecaoAnual: indiceAnual,
@@ -164,7 +200,14 @@ export function precificarCancelada(
       corrigido,
     });
 
-  const resgateProjetado = resgateComIndice(indiceBase);
+  // Mercado (CDI): acumulado até o mês ESPERADO de contemplação — é até lá que
+  // o dinheiro fica parado, no cenário central.
+  const cdiAnual = n(entrada.curva.cdiAnual);
+  const taxaCurva = interpolarCurva(entrada.curva.pontos ?? [], mesesEsperado);
+  const taxaParaCdi = taxaCurva ?? cdiAnual;
+  const cdiAcumuladoPeriodo = round4(taxaAcumulada(taxaParaCdi, mesesEsperado));
+
+  const resgateProjetado = resgateComIndiceEMeses(indiceBase, mesesEsperado);
 
   const pj = precoJusto({
     resgate: resgateProjetado,
@@ -172,7 +215,9 @@ export function precificarCancelada(
     cdiAcumuladoNoPeriodo: cdiAcumuladoPeriodo,
   });
 
-  const bench = { credito, percentualPago: pct, meses };
+  // Benchmarks: os concorrentes cotam pelo prazo CONTRATUAL do grupo, não pelo
+  // mês esperado de sorteio — formato validado contra exemplos reais assim.
+  const bench = { credito, percentualPago: pct, meses: mesesAteEncerramento };
   const mdv = propostaMdv(bench);
   const objetiva = propostaObjetiva(bench);
 
@@ -183,21 +228,62 @@ export function precificarCancelada(
       ? metricasRetorno({
           preco: precoAvaliado,
           resgate: resgateProjetado,
-          meses,
+          meses: mesesEsperado,
           cdiAcumuladoNoPeriodo: cdiAcumuladoPeriodo,
         })
       : null;
 
+  function calcularCenarioContemplacao(rotulo: string, meses: number): CenarioContemplacao {
+    const resgate = resgateComIndiceEMeses(indiceBase, meses);
+    const taxa = interpolarCurva(entrada.curva.pontos ?? [], meses) ?? cdiAnual;
+    const cdiAcum = round4(taxaAcumulada(taxa, meses));
+    const precoJustoCenario = precoJusto({
+      resgate,
+      metaMultiploCdi: meta,
+      cdiAcumuladoNoPeriodo: cdiAcum,
+    });
+    const precoParaRetorno = entrada.precoOfertado != null ? n(entrada.precoOfertado) : precoJustoCenario;
+    const m =
+      precoParaRetorno != null && precoParaRetorno > 0
+        ? metricasRetorno({
+            preco: precoParaRetorno,
+            resgate,
+            meses,
+            cdiAcumuladoNoPeriodo: cdiAcum,
+          })
+        : null;
+    return {
+      rotulo,
+      mesesAteContemplacao: meses,
+      resgateProjetado: resgate,
+      precoJusto: precoJustoCenario,
+      retornoTotal: m?.retornoTotal ?? null,
+      multiploCdi: m?.multiploCdi ?? null,
+    };
+  }
+
+  const cenariosContemplacao: CenarioContemplacao[] = [
+    calcularCenarioContemplacao(
+      "otimista",
+      Math.max(0, Math.round(mesesAteEncerramento * fatorOtimista)),
+    ),
+    calcularCenarioContemplacao("esperado", mesesEsperado),
+    calcularCenarioContemplacao(
+      "pessimista (só no encerramento)",
+      Math.max(0, Math.round(mesesAteEncerramento * fatorPessimista)),
+    ),
+  ];
+
   const cenarios: CenarioSensibilidade[] = DELTAS_SENSIBILIDADE.map(
     ({ rotulo, delta }) => {
       const indice = round4(Math.max(0, indiceBase + delta));
-      const resgate = resgateComIndice(indice);
+      const resgate = resgateComIndiceEMeses(indice, mesesEsperado);
       const m =
         precoAvaliado != null && precoAvaliado > 0
           ? metricasRetorno({
               preco: precoAvaliado,
               resgate,
-              meses,
+              meses: mesesEsperado,
               cdiAcumuladoNoPeriodo: cdiAcumuladoPeriodo,
             })
           : null;
@@ -216,8 +302,12 @@ export function precificarCancelada(
     },
   );
 
-  const avisos: string[] = [];
-  if (meses <= 0)
+  const avisos: string[] = [
+    "O ganho só se realiza na contemplação (sorteio de excluídos ou encerramento do " +
+      "grupo) — o mês exato é incerto. Use o cenário pessimista (encerramento) como " +
+      "piso de negociação, não só o esperado.",
+  ];
+  if (mesesAteEncerramento <= 0)
     avisos.push("Encerramento do grupo já passou ou é neste mês — prazo zero.");
   if (!usaFundoComum)
     avisos.push(
@@ -241,7 +331,8 @@ export function precificarCancelada(
   return {
     motor: "CANCELADA",
     dataReferencia: dataRef.toISOString().slice(0, 10),
-    mesesAteEncerramento: meses,
+    mesesAteEncerramento,
+    mesesAteContemplacaoEstimados: mesesEsperado,
     recebivelNominal,
     baseResgate,
     baseResgateOrigem: usaFundoComum ? "fundo_comum_pago" : "proxy_ssa",
@@ -257,6 +348,7 @@ export function precificarCancelada(
     propostaObjetiva: objetiva,
     precoAvaliado,
     retorno,
+    cenariosContemplacao,
     cenarios,
     avisos,
   };

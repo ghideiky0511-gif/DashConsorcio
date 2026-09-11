@@ -46,6 +46,7 @@ const schema = z.object({
   resgateCorrigido: z.boolean(),
   metaMultiploCdi: z.number().positive(),
   precoOfertado: z.number().positive().nullable(),
+  mesesAteContemplacaoEstimados: z.number().int().min(0).nullable(),
 });
 
 export async function precificarCartaCanceladaAction(
@@ -68,6 +69,9 @@ export async function precificarCartaCanceladaAction(
     resgateCorrigido: formData.get("resgateCorrigido") === "on",
     metaMultiploCdi: parseMoneyInput(formData.get("metaMultiploCdi")) ?? 2,
     precoOfertado: parseMoneyInput(formData.get("precoOfertado")),
+    mesesAteContemplacaoEstimados: parseMoneyInput(
+      formData.get("mesesAteContemplacaoEstimados"),
+    ),
   });
 
   if (!parsed.success) {
@@ -95,6 +99,7 @@ export async function precificarCartaCanceladaAction(
       resgateCorrigido: input.resgateCorrigido,
       metaMultiploCdi: input.metaMultiploCdi,
       precoOfertado: input.precoOfertado ?? undefined,
+      mesesAteContemplacaoEstimados: input.mesesAteContemplacaoEstimados ?? undefined,
       curva,
     });
 

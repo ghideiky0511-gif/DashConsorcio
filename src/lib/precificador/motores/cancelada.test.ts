@@ -31,18 +31,17 @@ describe("precificarCancelada", () => {
     const r = precificarCancelada(ERIKA);
 
     expect(r.motor).toBe("CANCELADA");
+    // teto garantido: 30 meses até o encerramento do grupo
     expect(r.mesesAteEncerramento).toBe(30);
+    // cenário esperado de contemplação (sorteio): metade do prazo, sem estimativa própria
+    expect(r.mesesAteContemplacaoEstimados).toBe(15);
     expect(r.baseResgateOrigem).toBe("fundo_comum_pago");
     expect(r.baseResgate).toBe(15_727.7);
 
-    // resgate = 15.727,70 corrigido por 4,3% a.a. em 2,5 anos
-    expect(r.resgateProjetado).toBeCloseTo(15_727.7 * Math.pow(1.043, 2.5), 0);
+    // resgate = 15.727,70 corrigido por 4,3% a.a. em 15 meses (mês esperado, não o encerramento)
+    expect(r.resgateProjetado).toBeCloseTo(15_727.7 * Math.pow(1.043, 15 / 12), 0);
 
-    // CDI acumulado no prazo (~10,5% a.a. em 30 meses)
-    expect(r.cdiAcumuladoPeriodo).toBeGreaterThan(0.25);
-    expect(r.cdiAcumuladoPeriodo).toBeLessThan(0.32);
-
-    // benchmarks reproduzem os sites
+    // benchmarks reproduzem os sites (cotados pelo prazo contratual, 30 meses)
     expect(r.propostaMdv.valor).toBe(8_000);
     expect(r.propostaObjetiva.valor).toBe(6_000);
 
@@ -50,6 +49,22 @@ describe("precificarCancelada", () => {
     expect(r.precoJusto).not.toBeNull();
     expect(r.precoAvaliado).toBe(r.precoJusto);
     expect(r.retorno!.multiploCdi).toBeCloseTo(2, 1);
+  });
+
+  it("respeita a estimativa própria de meses até a contemplação", () => {
+    const r = precificarCancelada({ ...ERIKA, mesesAteContemplacaoEstimados: 30 });
+    expect(r.mesesAteContemplacaoEstimados).toBe(30);
+    // agora bate com o cálculo antigo (contemplação só no encerramento)
+    expect(r.resgateProjetado).toBeCloseTo(15_727.7 * Math.pow(1.043, 2.5), 0);
+  });
+
+  it("monta 3 cenários de contemplação: otimista, esperado e pessimista (encerramento)", () => {
+    const r = precificarCancelada(ERIKA);
+    expect(r.cenariosContemplacao.map((c) => c.mesesAteContemplacao)).toEqual([8, 15, 30]);
+    const [otimista, esperado, pessimista] = r.cenariosContemplacao;
+    expect(otimista.resgateProjetado).toBeLessThan(esperado.resgateProjetado);
+    expect(esperado.resgateProjetado).toBeLessThan(pessimista.resgateProjetado);
+    expect(esperado.resgateProjetado).toBe(r.resgateProjetado);
   });
 
   it("no preço justo o retorno total ≈ meta × CDI acumulado", () => {

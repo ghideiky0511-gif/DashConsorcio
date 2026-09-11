@@ -52,6 +52,22 @@ export const PARAMETROS = {
     fatorRetido: 0.87,
   },
 
+  /** Quando o ganho depende de uma CONTEMPLAÇÃO por sorteio — cota ativa ainda
+   *  não contemplada, ou cota cancelada aguardando o sorteio de excluídos —, o
+   *  mês exato é incerto. Em vez de um valor único, avaliamos 3 cenários como
+   *  fração do prazo restante até o fim do grupo (que é o teto garantido: todo
+   *  mundo que sobra é contemplado/resgatado no encerramento). Compartilhado
+   *  entre `motores/cancelada.ts` e `motores/ativa-nao-contemplada.ts`. */
+  contemplacaoIncerta: {
+    /** Contemplação logo no início do prazo restante. */
+    fatorOtimista: 0.25,
+    /** Usado quando o operador não informa uma estimativa própria — vira a
+     *  base do "preço justo" principal. */
+    fatorEsperado: 0.5,
+    /** Pior caso: só contempla no sorteio final, junto do encerramento do grupo. */
+    fatorPessimista: 1,
+  },
+
   /** Carta CANCELADA. */
   cancelada: {
     /** Cenários de sensibilidade ao índice de correção, em pontos percentuais
@@ -67,17 +83,6 @@ export const PARAMETROS = {
       /** Prazo de carência até a administradora liberar o crédito, quando não informado. */
       prazoLiberacaoDiasPadrao: 180,
       diasPorMes: 30,
-    },
-    /** Cota ainda NÃO contemplada (nem lance dado, aguardando sorteio) — a data
-     *  da contemplação é incerta, então o preço é avaliado em 3 cenários de
-     *  quando ela acontece, como fração do prazo restante até o fim do grupo. */
-    naoContemplada: {
-      /** Contemplação logo no início do prazo restante. */
-      fatorOtimista: 0.25,
-      /** Usado quando o operador não informa uma estimativa própria. */
-      fatorEsperado: 0.5,
-      /** Pior caso: só contempla no sorteio final, junto do encerramento do grupo. */
-      fatorPessimista: 1,
     },
   },
 

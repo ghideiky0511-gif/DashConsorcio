@@ -138,8 +138,8 @@ export function PrecificadorCanceladaForm({
               placeholder="4,30"
               hint={
                 campos?.indiceCorrecao
-                  ? `em %; índice do grupo: ${campos.indiceCorrecao}`
-                  : "em %; projeção de IPCA do grupo"
+                  ? `em %; taxa que corrige o fundo comum até a devolução — índice do grupo: ${campos.indiceCorrecao}`
+                  : "em %; taxa (IPCA/INCC/IGP-M) que corrige o fundo comum até a devolução"
               }
               error={fieldErrors?.indiceCorrecaoAnual}
             />
@@ -167,6 +167,12 @@ export function PrecificadorCanceladaForm({
               name="dataReferencia"
               type="date"
               hint="opcional; padrão hoje"
+            />
+            <Campo
+              label="Estimativa de meses até o sorteio"
+              name="mesesAteContemplacaoEstimados"
+              placeholder="opcional"
+              hint="sem informar, usamos metade do prazo até o encerramento como cenário esperado"
             />
             <div className="flex items-center gap-2 pt-6">
               <input

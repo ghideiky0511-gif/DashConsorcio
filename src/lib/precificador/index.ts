@@ -43,6 +43,7 @@ export {
   type EntradaPrecificacaoCancelada,
   type ResultadoPrecificacaoCancelada,
   type CenarioSensibilidade,
+  type CenarioContemplacao as CenarioContemplacaoCancelada,
   type CurvaParaCalculo,
 } from "./motores/cancelada";
 export {
@@ -59,7 +60,7 @@ export {
   precificarAtivaNaoContemplada,
   type EntradaPrecificacaoAtivaNaoContemplada,
   type ResultadoPrecificacaoAtivaNaoContemplada,
-  type CenarioContemplacao,
+  type CenarioContemplacao as CenarioContemplacaoAtiva,
 } from "./motores/ativa-nao-contemplada";
 
 export {

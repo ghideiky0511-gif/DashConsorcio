@@ -78,7 +78,9 @@ export function ResultadoCancelada({
               {r.precoJusto == null ? "—" : formatBRL(r.precoJusto)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              preço justo · meta {r.metaMultiploCdi}× CDI
+              preço justo · meta {r.metaMultiploCdi}× CDI · contemplação estimada em{" "}
+              {r.mesesAteContemplacaoEstimados} meses (de {r.mesesAteEncerramento} até o
+              encerramento)
             </p>
           </CardContent>
         </Card>
@@ -99,7 +101,7 @@ export function ResultadoCancelada({
             valor={formatBRL(r.baseResgate)}
           />
           <Metrica
-            label={`Resgate projetado (corrigido, ${r.mesesAteEncerramento} meses)`}
+            label={`Resgate projetado (corrigido, ${r.mesesAteContemplacaoEstimados} meses até a contemplação)`}
             valor={formatBRL(r.resgateProjetado)}
             destaque
           />
@@ -137,11 +139,50 @@ export function ResultadoCancelada({
         </Card>
       )}
 
+      {/* Cenários de contemplação — o mês do sorteio é incerto */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">
+            Cenários — o mês da contemplação é incerto (sorteio de excluídos)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="py-1.5 pr-4 font-medium">Cenário</th>
+                  <th className="py-1.5 pr-4 font-medium">Contemplação em</th>
+                  <th className="py-1.5 pr-4 font-medium">Resgate projetado</th>
+                  <th className="py-1.5 pr-4 font-medium">Preço justo</th>
+                  <th className="py-1.5 font-medium">Múltiplo do CDI</th>
+                </tr>
+              </thead>
+              <tbody>
+                {r.cenariosContemplacao.map((c) => (
+                  <tr key={c.rotulo} className="border-b last:border-0">
+                    <td className="py-1.5 pr-4 capitalize">{c.rotulo}</td>
+                    <td className="py-1.5 pr-4">{c.mesesAteContemplacao} meses</td>
+                    <td className="py-1.5 pr-4">{formatBRL(c.resgateProjetado)}</td>
+                    <td className="py-1.5 pr-4">
+                      {c.precoJusto == null ? "—" : formatBRL(c.precoJusto)}
+                    </td>
+                    <td className="py-1.5">
+                      {c.multiploCdi == null ? "—" : `${c.multiploCdi.toFixed(2)}×`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Sensibilidade ao índice de correção */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">
-            Sensibilidade ao índice de correção
+            Sensibilidade ao índice de correção (no cenário esperado)
           </CardTitle>
         </CardHeader>
         <CardContent>
