@@ -131,7 +131,14 @@ src/
   as bibliotecas de parsing disponíveis no npm têm CVEs abertos ou dependências
   vulneráveis; exporte a planilha como CSV antes de importar. Falta rodar `npm run
   db:deploy` (bucket) e testar com uma planilha real.
-- **E — Usuários & permissões:** papéis nas actions + RLS no Supabase
+- **E — Usuários & permissões** ⏳ em andamento — papéis (`ADMIN`/`OPERADOR`/
+  `VISUALIZADOR`) já são checados em praticamente todas as server actions via
+  `requireRole`/`requireEditor`. `/usuarios` agora é uma tela de verdade:
+  convidar usuário (Supabase Admin API), trocar papel, ativar/desativar,
+  reenviar convite — protegida contra o admin se autodesativar/rebaixar ou
+  ficar sem nenhum admin ativo. Falta preencher `SUPABASE_SERVICE_ROLE_KEY`
+  no `.env` (hoje vazio) para o convite funcionar de verdade, e testar o
+  fluxo (convidar → usuário recebe e-mail → define senha → acessa).
 - **F — Acabamento & deploy**
 
 **Fora do plano original:** Precificador de cartas (`/precificador`) — motores de carta
