@@ -135,6 +135,35 @@ export async function alternarAtivoUsuarioAction(
   return ok();
 }
 
+export async function excluirUsuarioAction(id: string): Promise<ActionResult> {
+  const eu = await requireRole(Role.ADMIN);
+  if (id === eu.id) return fail("Você não pode excluir sua própria conta.");
+
+  const erro = await garantirNaoUltimoAdminAtivo(id);
+  if (erro) return fail(erro);
+
+  try {
+    await prisma.profile.delete({ where: { id } });
+  } catch (e) {
+    return fail(
+      prismaErrorMessage(
+        e,
+        "Não foi possível excluir: este usuário tem registros vinculados (cartas, despesas, documentos). Desative a conta em vez de excluir.",
+      ),
+    );
+  }
+
+  // Perfil já removido (acesso bloqueado); se a conta do Auth não sair, não tem problema.
+  try {
+    createAdminClient().auth.admin.deleteUser(id).catch(() => {});
+  } catch {
+    // sem SUPABASE_SERVICE_ROLE_KEY — segue mesmo assim.
+  }
+
+  revalidar();
+  return ok();
+}
+
 export async function reenviarConviteAction(id: string): Promise<ActionResult> {
   await requireRole(Role.ADMIN);
   const alvo = await prisma.profile.findUnique({ where: { id } });

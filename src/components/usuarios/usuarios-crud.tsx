@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, RotateCw } from "lucide-react";
+import { Plus, RotateCw, X } from "lucide-react";
 import { toast } from "sonner";
 import { ActionFormDialog } from "@/components/carta/action-form-dialog";
+import { ConfirmDelete } from "@/components/carta/confirm-delete";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ import {
   alternarAtivoUsuarioAction,
   atualizarPapelUsuarioAction,
   convidarUsuarioAction,
+  excluirUsuarioAction,
   reenviarConviteAction,
 } from "@/app/actions/usuarios";
 
@@ -51,6 +53,7 @@ export function UsuariosCrud({
   meuId: string;
 }) {
   const [convidando, setConvidando] = useState(false);
+  const [toDelete, setToDelete] = useState<UsuarioRow | null>(null);
 
   return (
     <div className="space-y-4">
@@ -81,7 +84,12 @@ export function UsuariosCrud({
             </TableRow>
           ) : (
             rows.map((u) => (
-              <UsuarioLinha key={u.id} usuario={u} souEu={u.id === meuId} />
+              <UsuarioLinha
+                key={u.id}
+                usuario={u}
+                souEu={u.id === meuId}
+                onExcluir={() => setToDelete(u)}
+              />
             ))
           )}
         </TableBody>
@@ -117,6 +125,21 @@ export function UsuariosCrud({
           </div>
         </ActionFormDialog>
       ) : null}
+
+      <ConfirmDelete
+        open={!!toDelete}
+        onOpenChange={(o) => !o && setToDelete(null)}
+        titulo="Excluir usuário?"
+        descricao={
+          <>
+            {toDelete ? <strong>{toDelete.nome}</strong> : null} perde o acesso
+            ao sistema imediatamente e a conta é removida. Essa ação não pode
+            ser desfeita.
+          </>
+        }
+        sucesso="Usuário excluído."
+        onConfirm={() => excluirUsuarioAction(toDelete!.id)}
+      />
     </div>
   );
 }
@@ -124,9 +147,11 @@ export function UsuariosCrud({
 function UsuarioLinha({
   usuario,
   souEu,
+  onExcluir,
 }: {
   usuario: UsuarioRow;
   souEu: boolean;
+  onExcluir: () => void;
 }) {
   const [pending, start] = useTransition();
   const [reenviando, startReenvio] = useTransition();
@@ -198,15 +223,25 @@ function UsuarioLinha({
       </TableCell>
       <TableCell>
         {!souEu ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Reenviar convite"
-            disabled={reenviando}
-            onClick={reenviarConvite}
-          >
-            <RotateCw className="size-4" />
-          </Button>
+          <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Reenviar convite"
+              disabled={reenviando}
+              onClick={reenviarConvite}
+            >
+              <RotateCw className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Excluir usuário"
+              onClick={onExcluir}
+            >
+              <X className="size-4 text-destructive" />
+            </Button>
+          </div>
         ) : null}
       </TableCell>
     </TableRow>
