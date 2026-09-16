@@ -2,6 +2,7 @@
 // cancelada e carta ativa (uma leitura só, os dois formulários se preenchem
 // a partir do mesmo resultado).
 
+import { useState } from "react";
 import { UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ExtracaoExtratoState } from "@/app/actions/agente-extracao";
@@ -37,19 +38,24 @@ export function ExtratoUpload({
   action: (formData: FormData) => void;
   pending: boolean;
 }) {
+  const [arquivos, setArquivos] = useState<File[]>([]);
+
   return (
     <section className="rounded-lg border bg-card p-4">
       <h2 className="mb-1 text-sm font-medium">Ler extrato automaticamente</h2>
       <p className="mb-3 text-xs text-muted-foreground">
-        Envie o PDF (ou imagem) do extrato — o agente preenche os campos da aba certa
-        (cancelada ou ativa) abaixo e avisa se o extrato está desatualizado.
+        Envie o PDF (ou imagens) do extrato — se vier em mais de um arquivo (ex.:
+        2 fotos), selecione todos de uma vez. O agente preenche os campos da aba
+        certa (cancelada ou ativa) abaixo e avisa se o extrato está desatualizado.
       </p>
       <form action={action} className="flex flex-wrap items-center gap-3">
         <input
           type="file"
-          name="arquivo"
+          name="arquivos"
+          multiple
           accept="application/pdf,image/png,image/jpeg,image/webp"
           required
+          onChange={(e) => setArquivos(Array.from(e.target.files ?? []))}
           className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium"
         />
         <Button type="submit" variant="outline" size="sm" disabled={pending}>
@@ -57,6 +63,12 @@ export function ExtratoUpload({
           {pending ? "Lendo…" : "Extrair dados"}
         </Button>
       </form>
+
+      {arquivos.length > 1 && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {arquivos.length} arquivos selecionados: {arquivos.map((a) => a.name).join(", ")}
+        </p>
+      )}
 
       {state?.ok === false && (
         <p className="mt-3 text-sm text-destructive">{state.error}</p>

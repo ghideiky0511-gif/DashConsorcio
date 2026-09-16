@@ -6,4 +6,9 @@ export {
   type Checagem,
   type StatusChecagem,
 } from "./atualidade";
-export { extrairCampos, type EntradaExtracao, type MediaTypeSuportado } from "./extrair";
+export {
+  extrairCampos,
+  type ArquivoExtracao,
+  type EntradaExtracao,
+  type MediaTypeSuportado,
+} from "./extrair";

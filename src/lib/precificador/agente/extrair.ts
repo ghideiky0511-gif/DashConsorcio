@@ -37,6 +37,9 @@ Regras:
 10. Preencha "observacoes" só se algo relevante não couber nos outros campos
    (ambiguidade, rasura, documento parcialmente ilegível, mais de uma cota no
    mesmo arquivo). Senão, null.
+11. Pode vir mais de um arquivo (ex.: extrato fotografado em 2 partes, ou frente
+   e verso). Trate como páginas do mesmo documento e devolva um único conjunto
+   de campos, combinando o que cada arquivo mostra.
 
 Sempre chame a ferramenta "reportar_extrato" — não responda em texto livre.`;
 
@@ -113,9 +116,14 @@ export type MediaTypeSuportado =
   | "image/jpeg"
   | "image/webp";
 
-export interface EntradaExtracao {
+export interface ArquivoExtracao {
   arquivo: Buffer;
   mediaType: MediaTypeSuportado;
+}
+
+/** Um extrato pode vir em mais de um arquivo (ex.: 2 fotos, frente e verso). */
+export interface EntradaExtracao {
+  arquivos: ArquivoExtracao[];
 }
 
 let clienteCache: Anthropic | null = null;
@@ -130,20 +138,25 @@ function cliente(): Anthropic {
   return clienteCache;
 }
 
-/** Lê o extrato e devolve os campos extraídos, validados contra o schema. */
+/** Lê o extrato (um ou mais arquivos) e devolve os campos extraídos, validados. */
 export async function extrairCampos(entrada: EntradaExtracao): Promise<CampoExtrato> {
-  const base64 = entrada.arquivo.toString("base64");
-
-  const documentBlock: Anthropic.ContentBlockParam =
-    entrada.mediaType === "application/pdf"
+  const documentBlocks: Anthropic.ContentBlockParam[] = entrada.arquivos.map((a) => {
+    const base64 = a.arquivo.toString("base64");
+    return a.mediaType === "application/pdf"
       ? {
           type: "document",
           source: { type: "base64", media_type: "application/pdf", data: base64 },
         }
       : {
           type: "image",
-          source: { type: "base64", media_type: entrada.mediaType, data: base64 },
+          source: { type: "base64", media_type: a.mediaType, data: base64 },
         };
+  });
+
+  const instrucao =
+    entrada.arquivos.length > 1
+      ? "Estes arquivos são páginas/fotos do mesmo extrato — combine as informações de todos em um único resultado."
+      : "Extraia os campos deste extrato.";
 
   const resposta = await cliente().messages.create({
     model: MODEL,
@@ -154,7 +167,7 @@ export async function extrairCampos(entrada: EntradaExtracao): Promise<CampoExtr
     messages: [
       {
         role: "user",
-        content: [documentBlock, { type: "text", text: "Extraia os campos deste extrato." }],
+        content: [...documentBlocks, { type: "text", text: instrucao }],
       },
     ],
   });
