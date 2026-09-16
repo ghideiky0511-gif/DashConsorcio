@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireProfile, requireRole } from "@/lib/auth";
@@ -16,6 +17,14 @@ import {
 
 function revalidar() {
   revalidatePath("/usuarios");
+}
+
+/** Link de convite volta pra cá: troca o código por sessão e manda definir senha. */
+async function urlConvite() {
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const origin = `${proto}://${h.get("host")}`;
+  return `${origin}/auth/callback?next=${encodeURIComponent("/definir-senha")}`;
 }
 
 const convidarSchema = z.object({
@@ -48,7 +57,9 @@ export async function convidarUsuarioAction(
     return fail(e instanceof Error ? e.message : "Falha ao iniciar cliente admin.");
   }
 
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(email);
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: await urlConvite(),
+  });
   if (error || !data.user) {
     return fail(error?.message ?? "Falha ao convidar usuário no Supabase Auth.");
   }
@@ -136,7 +147,9 @@ export async function reenviarConviteAction(id: string): Promise<ActionResult> {
     return fail(e instanceof Error ? e.message : "Falha ao iniciar cliente admin.");
   }
 
-  const { error } = await admin.auth.admin.inviteUserByEmail(alvo.email);
+  const { error } = await admin.auth.admin.inviteUserByEmail(alvo.email, {
+    redirectTo: await urlConvite(),
+  });
   if (error) return fail(error.message);
   return ok();
 }

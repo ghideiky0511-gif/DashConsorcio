@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { roleLabel } from "@/lib/labels";
+import { formatDateTime } from "@/lib/format";
 import type { Role } from "@/generated/prisma/client";
 import {
   alternarAtivoUsuarioAction,
@@ -39,6 +40,7 @@ type UsuarioRow = {
   email: string;
   role: Role;
   ativo: boolean;
+  ultimoLogin: string | null;
 };
 
 export function UsuariosCrud({
@@ -65,6 +67,7 @@ export function UsuariosCrud({
             <TableHead>Nome</TableHead>
             <TableHead>E-mail</TableHead>
             <TableHead>Papel</TableHead>
+            <TableHead>Último acesso</TableHead>
             <TableHead>Ativo</TableHead>
             <TableHead className="w-10" />
           </TableRow>
@@ -72,7 +75,7 @@ export function UsuariosCrud({
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
+              <TableCell colSpan={6} className="text-center text-muted-foreground">
                 Nenhum usuário cadastrado.
               </TableCell>
             </TableRow>
@@ -182,6 +185,9 @@ function UsuarioLinha({
             ))}
           </NativeSelect>
         )}
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {usuario.ultimoLogin ? formatDateTime(usuario.ultimoLogin) : "Nunca acessou"}
       </TableCell>
       <TableCell>
         <Switch

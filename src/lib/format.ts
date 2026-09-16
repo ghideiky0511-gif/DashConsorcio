@@ -22,6 +22,15 @@ const MONTH = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "UTC",
 });
 
+const DATE_TIME = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "America/Sao_Paulo",
+});
+
 type Numeric = number | string | { toString(): string } | null | undefined;
 
 function toNumber(value: Numeric): number {
@@ -47,6 +56,14 @@ export function formatDate(value: Date | string | null | undefined): string {
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return "—";
   return DATE.format(d);
+}
+
+/** 01/09/2026 14:32 — horário de Brasília. */
+export function formatDateTime(value: Date | string | null | undefined): string {
+  if (!value) return "—";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return DATE_TIME.format(d);
 }
 
 /** set. 2026 */
