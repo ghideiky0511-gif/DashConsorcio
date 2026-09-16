@@ -102,7 +102,7 @@ export function UsuariosCrud({
           onClose={() => setConvidando(false)}
           onSuccess={() => {
             setConvidando(false);
-            toast.success("Convite enviado por e-mail.");
+            toast.success("Usuário convidado com sucesso! E-mail enviado.");
           }}
         >
           <div className="space-y-2">
