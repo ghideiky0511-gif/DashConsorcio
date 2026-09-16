@@ -19,11 +19,19 @@ function revalidar() {
   revalidatePath("/usuarios");
 }
 
-/** Link de convite volta pra cá: troca o código por sessão e manda definir senha. */
+/**
+ * Link de convite volta pra cá: troca o código por sessão e manda definir senha.
+ * Usa NEXT_PUBLIC_SITE_URL (produção) quando definida — senão cai pro host da
+ * requisição atual, útil em dev local. Sem isso, convidar rodando `npm run dev`
+ * geraria um link apontando pra localhost, que o convidado não consegue abrir.
+ */
 async function urlConvite() {
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const origin = `${proto}://${h.get("host")}`;
+  let origin = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!origin) {
+    const h = await headers();
+    const proto = h.get("x-forwarded-proto") ?? "http";
+    origin = `${proto}://${h.get("host")}`;
+  }
   return `${origin}/auth/callback?next=${encodeURIComponent("/definir-senha")}`;
 }
 
