@@ -13,6 +13,9 @@ export async function GET(request: Request) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next.startsWith("/") ? next : "/"}`);
     }
+    console.error("[auth/callback] exchangeCodeForSession falhou:", error.message);
+  } else {
+    console.error("[auth/callback] sem `code` na query string:", request.url);
   }
 
   return NextResponse.redirect(`${origin}/login?erro=auth`);
