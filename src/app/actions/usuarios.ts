@@ -6,6 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireProfile, requireRole } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { Role } from "@/generated/prisma/client";
 import {
   type ActionResult,
@@ -184,10 +185,23 @@ export async function reenviarConviteAction(id: string): Promise<ActionResult> {
     return fail(e instanceof Error ? e.message : "Falha ao iniciar cliente admin.");
   }
 
-  const { error } = await admin.auth.admin.inviteUserByEmail(alvo.email, {
-    redirectTo: await urlConvite(),
-  });
-  if (error) return fail(error.message);
+  const redirectTo = await urlConvite();
+  const { error } = await admin.auth.admin.inviteUserByEmail(alvo.email, { redirectTo });
+  if (error) {
+    // E-mail já confirmado no Auth (ex.: o link do convite anterior chegou a ser
+    // aberto uma vez, por um scanner de segurança ou clique antigo, antes de
+    // expirar) — Supabase recusa reconvidar. Manda link de redefinição de senha
+    // em vez disso, que volta pro mesmo /definir-senha.
+    if (error.message.toLowerCase().includes("already been registered")) {
+      const supabase = await createClient();
+      const { error: erroReset } = await supabase.auth.resetPasswordForEmail(alvo.email, {
+        redirectTo,
+      });
+      if (erroReset) return fail(erroReset.message);
+      return ok();
+    }
+    return fail(error.message);
+  }
   return ok();
 }
 
