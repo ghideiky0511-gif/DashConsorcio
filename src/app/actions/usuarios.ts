@@ -21,11 +21,13 @@ function revalidar() {
 }
 
 /**
- * Destino final depois que o link do e-mail (convite/reset) é verificado em
- * /auth/callback — vira o valor de {{ .RedirectTo }} no template do e-mail.
- * Usa NEXT_PUBLIC_SITE_URL (produção) quando definida — senão cai pro host da
- * requisição atual, útil em dev local. Sem isso, convidar rodando `npm run dev`
- * geraria um link apontando pra localhost, que o convidado não consegue abrir.
+ * Link de convite/reset volta pra cá: /auth/callback processa a sessão (o
+ * Supabase manda os tokens no fragmento "#" da URL, fluxo implícito — só o
+ * navegador enxerga isso, por isso o processamento é client-side) e manda
+ * pra "next". Usa NEXT_PUBLIC_SITE_URL (produção) quando definida — senão
+ * cai pro host da requisição atual, útil em dev local. Sem isso, convidar
+ * rodando `npm run dev` geraria um link apontando pra localhost, que o
+ * convidado não consegue abrir.
  */
 async function urlConvite() {
   let origin = process.env.NEXT_PUBLIC_SITE_URL;
@@ -34,7 +36,7 @@ async function urlConvite() {
     const proto = h.get("x-forwarded-proto") ?? "http";
     origin = `${proto}://${h.get("host")}`;
   }
-  return `${origin}/definir-senha`;
+  return `${origin}/auth/callback?next=${encodeURIComponent("/definir-senha")}`;
 }
 
 const convidarSchema = z.object({

@@ -46,7 +46,7 @@ export function LoginForm() {
       const { error } = await createClient().auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}${next.startsWith("/") ? next : "/"}`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         },
       });
       setMsg(
