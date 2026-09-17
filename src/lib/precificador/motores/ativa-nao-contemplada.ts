@@ -7,12 +7,17 @@
 // sorte), em vez de exigir um valor único avaliamos 3 cenários — contemplação
 // cedo, na metade do prazo, ou só no sorteio final (pior caso, igual ao fim do
 // grupo) — mesma lógica de "cenário de sensibilidade" já usada em
-// `cancelada.ts` pro índice de correção. O "preço justo" principal é o do
-// cenário ESPERADO; os outros dois servem de piso/teto pra negociação.
+// `cancelada.ts` pro índice de correção. O "preço justo" principal é sempre o
+// do cenário PESSIMISTA (o piso) — contemplar cedo só melhora o negócio, nunca
+// piora, então negociar pelo piso protege o comprador se o sorteio demorar.
 //
 // Em todos os cenários, a parcela continua sendo paga do mês 1 até o fim do
 // prazo restante (contemplar não quita a dívida, só antecipa o crédito) — o
-// que muda é só QUANDO o crédito entra no fluxo.
+// que muda é QUANDO o crédito entra no fluxo. Quem contempla cedo pode
+// reinvestir esse crédito (à curva de juros) até o fim do prazo; por isso o
+// crédito é "futurizado" pelo tempo que sobra entre a contemplação do cenário
+// e o encerramento do grupo. No cenário pessimista esse tempo é zero — o
+// crédito entra nominal, igual à fórmula simples de antes.
 //
 // Pura — coberta por testes. Segue sem TIR pelo mesmo motivo documentado em
 // `ativa-parcelas.ts`: fluxo "entrada grande, saídas pequenas" degenera o
@@ -52,7 +57,11 @@ export interface EntradaPrecificacaoAtivaNaoContemplada {
   /** Meses restantes até o fim do plano (encerramento do grupo). */
   mesesAteEncerramento: number;
   /** Estimativa própria de em qual mês a contemplação deve sair. Ausente →
-   *  usa `PARAMETROS.contemplacaoIncerta.fatorEsperado` × prazo restante. */
+   *  usa `PARAMETROS.contemplacaoIncerta.fatorEsperado` × prazo restante.
+   *  Não importa se a contemplação vem do sorteio ou de um lance nosso pra
+   *  acelerar: a conta é a mesma, só o mês muda — por isso não há campo de
+   *  lance aqui (diferente de `ativa-parcelas.ts`, onde o lance já foi dado
+   *  e é custo conhecido). */
   mesesAteContemplacaoEstimados?: number;
   /** Custo único de transferência da cota, se houver. */
   taxaTransferencia?: Num;
@@ -67,7 +76,8 @@ export interface EntradaPrecificacaoAtivaNaoContemplada {
 export interface CenarioContemplacao {
   rotulo: string;
   mesesAteContemplacao: number;
-  /** Crédito recebido na contemplação, já descontando parcelas pagas até lá. */
+  /** Crédito recebido na contemplação (reinvestido até o encerramento do
+   *  grupo), menos as parcelas pagas até o fim do prazo. */
   valorNominalTotal: number;
   precoJusto: number | null;
   retornoTotal: number | null;
@@ -88,7 +98,8 @@ export interface ResultadoPrecificacaoAtivaNaoContemplada {
   precoJusto: number | null;
   precoAvaliado: number | null;
   retorno: MetricasRetorno | null;
-  /** Otimista / esperado / pessimista — mesmo preço avaliado, contemplação em momentos diferentes. */
+  /** Otimista / esperado / pessimista — cada um com seu próprio crédito
+   *  reinvestido e preço justo; o pessimista é o piso usado acima. */
   cenarios: CenarioContemplacao[];
   avisos: string[];
 }
@@ -119,15 +130,20 @@ export function precificarAtivaNaoContemplada(
   const taxaParaCdi = taxaCurva ?? cdiAnual;
   const cdiAcumuladoPeriodo = round4(taxaAcumulada(taxaParaCdi, mesesAteEncerramento));
 
-  // Independente de quando contempla, a parcela é paga todo mês até o fim do
-  // prazo — só o momento em que o crédito "entra" no bolso muda por cenário.
-  const valorNominalBase = round2(
-    credito - taxaTransferencia - parcela * mesesAteEncerramento,
-  );
-
   function calcularCenario(rotulo: string, mesesContemplacao: number): CenarioContemplacao {
+    // Tempo entre a contemplação (nesse cenário) e o fim do prazo: é o quanto
+    // dá pra reinvestir o crédito recebido. No pessimista isso é zero.
+    const mesesReinvestimento = Math.max(0, mesesAteEncerramento - mesesContemplacao);
+    const taxaResidual =
+      interpolarCurva(entrada.curva.pontos ?? [], mesesReinvestimento) ?? cdiAnual;
+    const fatorReinvestimento = 1 + taxaAcumulada(taxaResidual, mesesReinvestimento);
+    const creditoFuturizado = round2(credito * fatorReinvestimento);
+    const valorNominalCenario = round2(
+      creditoFuturizado - taxaTransferencia - parcela * mesesAteEncerramento,
+    );
+
     const pj = calcularPrecoJusto({
-      resgate: valorNominalBase,
+      resgate: valorNominalCenario,
       metaMultiploCdi: meta,
       cdiAcumuladoNoPeriodo: cdiAcumuladoPeriodo,
     });
@@ -137,7 +153,7 @@ export function precificarAtivaNaoContemplada(
       precoParaRetorno != null && precoParaRetorno > 0
         ? metricasRetorno({
             preco: precoParaRetorno,
-            resgate: valorNominalBase,
+            resgate: valorNominalCenario,
             meses: mesesAteEncerramento,
             cdiAcumuladoNoPeriodo: cdiAcumuladoPeriodo,
           })
@@ -145,7 +161,7 @@ export function precificarAtivaNaoContemplada(
     return {
       rotulo,
       mesesAteContemplacao: mesesContemplacao,
-      valorNominalTotal: valorNominalBase,
+      valorNominalTotal: valorNominalCenario,
       precoJusto: pj,
       retornoTotal: m?.retornoTotal ?? null,
       multiploCdi: m?.multiploCdi ?? null,
@@ -164,22 +180,25 @@ export function precificarAtivaNaoContemplada(
     ),
   ];
 
-  const esperado = cenarios[1];
+  // Preço justo principal = piso do cenário pessimista: contemplar antes só
+  // melhora o negócio (crédito reinvestido rende mais), nunca piora.
+  const pessimista = cenarios[cenarios.length - 1];
   const precoAvaliado =
-    entrada.precoOfertado != null ? n(entrada.precoOfertado) : esperado.precoJusto;
+    entrada.precoOfertado != null ? n(entrada.precoOfertado) : pessimista.precoJusto;
   const retorno =
     precoAvaliado != null && precoAvaliado > 0
       ? metricasRetorno({
           preco: precoAvaliado,
-          resgate: esperado.valorNominalTotal,
+          resgate: pessimista.valorNominalTotal,
           meses: mesesAteEncerramento,
           cdiAcumuladoNoPeriodo: cdiAcumuladoPeriodo,
         })
       : null;
 
   const avisos: string[] = [
-    "Cota ainda não contemplada: o mês exato do sorteio é incerto — use o cenário " +
-      "pessimista como piso de negociação, não só o esperado.",
+    "Cota ainda não contemplada: o mês exato do sorteio é incerto. O preço justo acima " +
+      "já usa o cenário pessimista (sorteio só no encerramento) como piso — os cenários " +
+      "otimista e esperado na tabela mostram o ganho extra se a contemplação sair antes.",
   ];
   if (mesesAteEncerramento <= 0)
     avisos.push("Prazo até o encerramento do grupo é zero ou já passou — confira os dados.");
@@ -188,13 +207,13 @@ export function precificarAtivaNaoContemplada(
     avisos.push("Parcela mensal zerada com prazo restante > 0 — confira os dados.");
   if (taxaCurva == null)
     avisos.push("Curva de juros vazia — CDI acumulado usa o CDI corrente.");
-  if (valorNominalBase <= 0)
+  if (pessimista.valorNominalTotal <= 0)
     avisos.push(
       "As parcelas até o fim do prazo somam mais que o crédito — negócio ruim independente do preço.",
     );
   if (retorno?.multiploCdi != null && retorno.multiploCdi < meta)
     avisos.push(
-      `No preço avaliado (cenário esperado) o retorno é ${retorno.multiploCdi.toFixed(
+      `No preço avaliado (cenário pessimista) o retorno é ${retorno.multiploCdi.toFixed(
         2,
       )}× o CDI, abaixo da meta de ${meta}×.`,
     );
@@ -208,8 +227,8 @@ export function precificarAtivaNaoContemplada(
     taxaCurvaNoPrazo: taxaCurva == null ? null : round4(taxaCurva),
     cdiAcumuladoPeriodo,
     metaMultiploCdi: meta,
-    valorNominalTotal: esperado.valorNominalTotal,
-    precoJusto: esperado.precoJusto,
+    valorNominalTotal: pessimista.valorNominalTotal,
+    precoJusto: pessimista.precoJusto,
     precoAvaliado,
     retorno,
     cenarios,

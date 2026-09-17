@@ -97,6 +97,45 @@ describe("precificarAtivaNaoContemplada", () => {
     expect(r.avisos.some((a) => a.includes("negócio ruim"))).toBe(true);
   });
 
+  it("com CDI > 0, contemplar cedo reinveste o crédito e dá cenários diferentes", () => {
+    const r = precificarAtivaNaoContemplada({
+      creditoAtual: 90_814.3,
+      parcelaMensal: 708.05,
+      mesesAteEncerramento: 60,
+      metaMultiploCdi: 2,
+      curva: CURVA_REAL,
+    });
+    const [otimista, esperado, pessimista] = r.cenarios;
+    // Otimista contempla mais cedo → mais tempo pra reinvestir o crédito → recebe mais.
+    expect(otimista.valorNominalTotal).toBeGreaterThan(esperado.valorNominalTotal);
+    expect(esperado.valorNominalTotal).toBeGreaterThan(pessimista.valorNominalTotal);
+    expect(otimista.precoJusto!).toBeGreaterThan(pessimista.precoJusto!);
+  });
+
+  it("o preço justo principal é sempre o piso do cenário pessimista", () => {
+    const r = precificarAtivaNaoContemplada({
+      creditoAtual: 90_814.3,
+      parcelaMensal: 708.05,
+      mesesAteEncerramento: 60,
+      metaMultiploCdi: 2,
+      curva: CURVA_REAL,
+    });
+    const pessimista = r.cenarios[r.cenarios.length - 1];
+    expect(r.precoJusto).toBe(pessimista.precoJusto);
+    expect(r.valorNominalTotal).toBe(pessimista.valorNominalTotal);
+  });
+
+  it("no cenário pessimista o crédito não é reinvestido — bate com a fórmula nominal simples", () => {
+    const r = precificarAtivaNaoContemplada({
+      creditoAtual: 90_000,
+      parcelaMensal: 1_000,
+      mesesAteEncerramento: 60,
+      curva: CURVA_REAL,
+    });
+    const pessimista = r.cenarios[r.cenarios.length - 1];
+    expect(pessimista.valorNominalTotal).toBe(30_000);
+  });
+
   it("sempre alerta sobre a incerteza do mês de contemplação", () => {
     const r = precificarAtivaNaoContemplada({
       creditoAtual: 90_000,
