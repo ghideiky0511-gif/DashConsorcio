@@ -5,6 +5,7 @@ import { Bell, CalendarClock, Landmark } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -34,9 +35,11 @@ export function AlertasBell({ itens }: { itens: AlertaItem[] }) {
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel>
-          Alertas dos próximos 7 dias
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>
+            Alertas dos próximos 7 dias
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         {itens.length === 0 ? (
           <p className="px-2 py-4 text-center text-sm text-muted-foreground">
